@@ -37,5 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet', [EcopayController::class, 'getWallet']);
     Route::get('/transactions', [EcopayController::class, 'getTransactions']);
     Route::post('/scans/confirm', [ScanController::class, 'confirmScan']);
+    Route::post('/coins/exchange', [EcopayController::class, 'exchangeCoins']);
+    Route::post('/topup', [EcopayController::class, 'topup']);
+    Route::post('/transfer', [EcopayController::class, 'transfer']);
 
 });
