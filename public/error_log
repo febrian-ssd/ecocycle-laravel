@@ -82,3 +82,44 @@ Stack trace:
 #7 [internal function]: Illuminate\Foundation\Bootstrap\HandleExceptions->Illuminate\Foundation\Bootstrap\{closure}()
 #8 {main}
   thrown in /home/ecocylce/public_html/vendor/symfony/http-foundation/Response.php on line 322
+[15-Jun-2025 14:04:59 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:04:59 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:04:59 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/../vendor/autoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/index.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:18 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:18 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:18 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/../vendor/autoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/index.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:57 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:57 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:57 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/../vendor/autoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/index.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:58 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:58 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:07:58 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/../vendor/autoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/index.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:09:20 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:09:20 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:09:20 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/../vendor/autoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/index.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:11:46 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:11:46 Asia/Jakarta] PHP Warning:  require(/home/ecocylce/public_html/../vendor/autoload.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:11:46 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/../vendor/autoload.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/index.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/index.php on line 14
+[15-Jun-2025 14:17:11 Asia/Jakarta] PHP Warning:  require_once(/home/ecocylce/public_html/public/bootstrap/app.php): Failed to open stream: No such file or directory in /home/ecocylce/public_html/public/index.php on line 18
+[15-Jun-2025 14:17:11 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/ecocylce/public_html/public/bootstrap/app.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ecocylce/public_html/public/index.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/ecocylce/public_html/public/index.php on line 18
