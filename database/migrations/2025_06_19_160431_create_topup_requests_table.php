@@ -12,21 +12,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Cek dan tambah kolom is_admin jika belum ada
-        if (!Schema::hasColumn('users', 'is_admin')) {
-            Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table) {
+            // Tambah kolom is_admin jika belum ada
+            if (!Schema::hasColumn('users', 'is_admin')) {
                 $table->boolean('is_admin')->default(false)->after('email_verified_at');
-            });
-        }
+            }
 
-        // Cek dan tambah kolom saldo jika belum ada
-        if (!Schema::hasColumn('users', 'balance_rp')) {
-            Schema::table('users', function (Blueprint $table) {
+            // Tambah kolom balance_rp jika belum ada
+            if (!Schema::hasColumn('users', 'balance_rp')) {
                 $table->decimal('balance_rp', 15, 2)->default(0)->after('is_admin');
-            });
-        }
+            }
+        });
 
-        // Set default saldo untuk existing users
+        // Set nilai default balance_rp ke 0 untuk existing users yang nilainya null
         DB::table('users')->whereNull('balance_rp')->update(['balance_rp' => 0]);
     }
 
