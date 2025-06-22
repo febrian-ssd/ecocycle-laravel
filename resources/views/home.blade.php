@@ -163,6 +163,24 @@
         .info-panel h3 {
             font-size: 1.1rem;
         }
+
+        /* Floating button responsive */
+        .floating-logout {
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            font-size: 18px;
+        }
+
+        .floating-logout::before {
+            right: 60px;
+            font-size: 11px;
+        }
+
+        .floating-logout::after {
+            right: 50px;
+        }
     }
 
     /* Custom Marker Styles */
@@ -188,6 +206,81 @@
         border-left: 5px solid transparent;
         border-right: 5px solid transparent;
         border-top: 5px solid #004d00;
+    }
+
+    /* Floating Logout Button */
+    .floating-logout {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1500;
+        background: linear-gradient(135deg, #ff8c00 0%, #ff6b00 100%);
+        color: white;
+        border: none;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 20px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(255,140,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .floating-logout:hover {
+        transform: translateY(-3px) scale(1.1);
+        box-shadow: 0 6px 30px rgba(255,140,0,0.6);
+        background: linear-gradient(135deg, #ff6b00 0%, #ff5500 100%);
+    }
+
+    .floating-logout:active {
+        transform: translateY(-1px) scale(1.05);
+    }
+
+    .floating-logout i {
+        font-size: 20px;
+    }
+
+    /* Tooltip for floating button */
+    .floating-logout::before {
+        content: 'Logout';
+        position: absolute;
+        right: 70px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .floating-logout::after {
+        content: '';
+        position: absolute;
+        right: 60px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+        border-left: 5px solid rgba(0,0,0,0.8);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .floating-logout:hover::before,
+    .floating-logout:hover::after {
+        opacity: 1;
     }
 </style>
 @endsection
@@ -261,6 +354,16 @@
             @endif
         </div>
     </div>
+
+    <!-- Floating Logout Button -->
+    @auth
+    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+        @csrf
+        <button type="submit" class="floating-logout" title="Logout">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </form>
+    @endauth
 </div>
 @endsection
 
