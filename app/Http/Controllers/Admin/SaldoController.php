@@ -19,7 +19,6 @@ class SaldoController extends Controller
 
     public function approveTopup(TopupRequest $topupRequest)
     {
-        // Gunakan transaction untuk keamanan data
         DB::transaction(function () use ($topupRequest) {
             // Update status request menjadi 'approved'
             $topupRequest->status = 'approved';
