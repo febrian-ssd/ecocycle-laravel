@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\TopupRequest; // Assuming you have this model
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -169,19 +170,31 @@ class SaldoController extends Controller
 
             $user = User::findOrFail($request->user_id);
 
-            // Tambah saldo langsung
-            $user->increment('saldo', $request->amount);
+            // Cek apakah kolom saldo ada di tabel users
+            if (!Schema::hasColumn('users', 'saldo')) {
+                throw new \Exception('Kolom saldo tidak ditemukan di tabel users. Silakan jalankan migration terlebih dahulu.');
+            }
 
-            // Buat record top up request untuk tracking
-            TopupRequest::create([
-                'user_id' => $user->id,
-                'amount' => $request->amount,
-                'status' => 'approved',
-                'type' => 'manual',
-                'approved_by' => auth()->id(),
-                'approved_at' => now(),
-                'admin_note' => $request->note ?: 'Top up manual oleh admin'
-            ]);
+            // Tambah saldo langsung dengan update manual untuk menghindari error
+            DB::table('users')
+                ->where('id', $user->id)
+                ->update([
+                    'saldo' => DB::raw('saldo + ' . $request->amount),
+                    'updated_at' => now()
+                ]);
+
+            // Buat record top up request untuk tracking jika tabel sudah ada
+            if (Schema::hasTable('topup_requests')) {
+                TopupRequest::create([
+                    'user_id' => $user->id,
+                    'amount' => $request->amount,
+                    'status' => 'approved',
+                    'type' => 'manual',
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                    'admin_note' => $request->note ?: 'Top up manual oleh admin'
+                ]);
+            }
 
             // Log aktivitas
             Log::info("Manual topup: {$request->amount} for user {$user->name}");
