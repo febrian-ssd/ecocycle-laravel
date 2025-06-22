@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\TopupRequest; // Assuming you have this model
+use App\Models\TopupRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
@@ -19,21 +19,25 @@ class SaldoController extends Controller
     public function topupIndex()
     {
         try {
-            // Ambil semua permintaan top up dengan relasi user
-            $topupRequests = TopupRequest::with('user')
-                                       ->latest()
-                                       ->get();
+            // Jika tabel topup_requests ada, ambil data dari sana
+            if (Schema::hasTable('topup_requests')) {
+                $topupRequests = TopupRequest::with('user')->latest()->get();
 
-            // Hitung statistik untuk dashboard
-            $pendingRequests = $topupRequests->where('status', 'pending')->count();
-            $approvedRequests = $topupRequests->where('status', 'approved')->count();
-            $totalRequests = $topupRequests->count();
-            $totalAmount = $topupRequests->sum('amount');
+                $pendingRequests = $topupRequests->where('status', 'pending')->count();
+                $approvedRequests = $topupRequests->where('status', 'approved')->count();
+                $totalRequests = $topupRequests->count();
+                $totalAmount = $topupRequests->sum('amount');
+            } else {
+                // Jika tabel belum ada, gunakan data kosong
+                $topupRequests = collect();
+                $pendingRequests = 0;
+                $approvedRequests = 0;
+                $totalRequests = 0;
+                $totalAmount = 0;
+            }
 
-            // Ambil semua user untuk dropdown manual topup
-            $users = User::where('is_admin', false)
-                        ->orderBy('name')
-                        ->get();
+            // Ambil semua user non-admin untuk dropdown manual topup
+            $users = User::where('is_admin', false)->orderBy('name')->get();
 
             return view('admin.saldo.topup_index', compact(
                 'topupRequests',
@@ -72,6 +76,12 @@ class SaldoController extends Controller
     public function approveTopup(Request $request, $id)
     {
         try {
+            // Cek apakah tabel topup_requests ada
+            if (!Schema::hasTable('topup_requests')) {
+                return redirect()->route('admin.saldo.topup.index')
+                               ->with('error', 'Tabel topup_requests belum ada. Silakan buat migration terlebih dahulu.');
+            }
+
             $topupRequest = TopupRequest::findOrFail($id);
 
             if ($topupRequest->status !== 'pending') {
@@ -91,9 +101,14 @@ class SaldoController extends Controller
 
             // Tambahkan saldo ke user
             $user = $topupRequest->user;
-            $user->increment('saldo', $topupRequest->amount);
+            DB::table('users')
+                ->where('id', $topupRequest->user_id)
+                ->update([
+                    'balance_rp' => DB::raw('balance_rp + ' . $topupRequest->amount),
+                    'updated_at' => now()
+                ]);
 
-            // Log aktivitas (opsional)
+            // Log aktivitas
             Log::info("Top up approved: {$topupRequest->amount} for user {$user->name}");
 
             DB::commit();
@@ -119,6 +134,12 @@ class SaldoController extends Controller
             $request->validate([
                 'reason' => 'required|string|max:500'
             ]);
+
+            // Cek apakah tabel topup_requests ada
+            if (!Schema::hasTable('topup_requests')) {
+                return redirect()->route('admin.saldo.topup.index')
+                               ->with('error', 'Tabel topup_requests belum ada. Silakan buat migration terlebih dahulu.');
+            }
 
             $topupRequest = TopupRequest::findOrFail($id);
 
@@ -170,16 +191,16 @@ class SaldoController extends Controller
 
             $user = User::findOrFail($request->user_id);
 
-            // Cek apakah kolom saldo ada di tabel users
-            if (!Schema::hasColumn('users', 'saldo')) {
-                throw new \Exception('Kolom saldo tidak ditemukan di tabel users. Silakan jalankan migration terlebih dahulu.');
+            // Cek apakah kolom balance_rp ada di tabel users
+            if (!Schema::hasColumn('users', 'balance_rp')) {
+                throw new \Exception('Kolom balance_rp tidak ditemukan di tabel users. Silakan jalankan migration terlebih dahulu.');
             }
 
-            // Tambah saldo langsung dengan update manual untuk menghindari error
+            // Tambah saldo langsung
             DB::table('users')
                 ->where('id', $user->id)
                 ->update([
-                    'saldo' => DB::raw('saldo + ' . $request->amount),
+                    'balance_rp' => DB::raw('balance_rp + ' . $request->amount),
                     'updated_at' => now()
                 ]);
 
@@ -219,14 +240,23 @@ class SaldoController extends Controller
     public function getStats()
     {
         try {
-            $topupRequests = TopupRequest::all();
+            if (Schema::hasTable('topup_requests')) {
+                $topupRequests = TopupRequest::all();
 
-            return response()->json([
-                'pending' => $topupRequests->where('status', 'pending')->count(),
-                'approved' => $topupRequests->where('status', 'approved')->count(),
-                'total' => $topupRequests->count(),
-                'totalAmount' => $topupRequests->sum('amount')
-            ]);
+                return response()->json([
+                    'pending' => $topupRequests->where('status', 'pending')->count(),
+                    'approved' => $topupRequests->where('status', 'approved')->count(),
+                    'total' => $topupRequests->count(),
+                    'totalAmount' => $topupRequests->sum('amount')
+                ]);
+            } else {
+                return response()->json([
+                    'pending' => 0,
+                    'approved' => 0,
+                    'total' => 0,
+                    'totalAmount' => 0
+                ]);
+            }
         } catch (\Exception $e) {
             Log::error('Error getting stats: ' . $e->getMessage());
             return response()->json([
@@ -244,6 +274,11 @@ class SaldoController extends Controller
     public function show($id)
     {
         try {
+            if (!Schema::hasTable('topup_requests')) {
+                return redirect()->route('admin.saldo.topup.index')
+                               ->with('error', 'Tabel topup_requests belum ada.');
+            }
+
             $topupRequest = TopupRequest::with(['user', 'approvedBy', 'rejectedBy'])->findOrFail($id);
             return view('admin.saldo.topup_show', compact('topupRequest'));
         } catch (\Exception $e) {
@@ -254,11 +289,16 @@ class SaldoController extends Controller
     }
 
     /**
-     * Export data top up ke Excel.
+     * Export data top up ke CSV.
      */
     public function export(Request $request)
     {
         try {
+            if (!Schema::hasTable('topup_requests')) {
+                return redirect()->route('admin.saldo.topup.index')
+                               ->with('error', 'Tabel topup_requests belum ada.');
+            }
+
             $query = TopupRequest::with('user')->latest();
 
             // Filter berdasarkan parameter
@@ -295,17 +335,17 @@ class SaldoController extends Controller
                 ]);
 
                 // CSV Data
-                foreach ($topupRequests as $request) {
+                foreach ($topupRequests as $topupRequest) {
                     fputcsv($file, [
-                        $request->id,
-                        $request->user->name ?? 'Unknown',
-                        $request->user->email ?? 'No email',
-                        $request->amount,
-                        ucfirst($request->status),
-                        $request->created_at->format('d/m/Y H:i:s'),
-                        $request->approved_at ? $request->approved_at->format('d/m/Y H:i:s') :
-                        ($request->rejected_at ? $request->rejected_at->format('d/m/Y H:i:s') : '-'),
-                        $request->admin_note ?: '-'
+                        $topupRequest->id,
+                        $topupRequest->user->name ?? 'Unknown',
+                        $topupRequest->user->email ?? 'No email',
+                        $topupRequest->amount,
+                        ucfirst($topupRequest->status),
+                        $topupRequest->created_at->format('d/m/Y H:i:s'),
+                        $topupRequest->approved_at ? $topupRequest->approved_at->format('d/m/Y H:i:s') :
+                        ($topupRequest->rejected_at ? $topupRequest->rejected_at->format('d/m/Y H:i:s') : '-'),
+                        $topupRequest->admin_note ?: '-'
                     ]);
                 }
 
@@ -328,9 +368,12 @@ class SaldoController extends Controller
     {
         try {
             $user = User::findOrFail($userId);
-            $topupHistory = TopupRequest::where('user_id', $user->id)
-                                      ->latest()
-                                      ->get();
+
+            if (Schema::hasTable('topup_requests')) {
+                $topupHistory = TopupRequest::where('user_id', $user->id)->latest()->get();
+            } else {
+                $topupHistory = collect();
+            }
 
             return view('admin.saldo.user_history', compact('user', 'topupHistory'));
         } catch (\Exception $e) {
