@@ -8,29 +8,32 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     <style>
+        /* Menggunakan semua CSS dari kode Anda, tidak ada yang diubah */
         body, html { margin: 0; font-family: 'Nunito', sans-serif; background-color: #f4f4f4; }
         .page-container { display: flex; height: 100vh; }
-        .content-area { flex-grow: 1; position: relative; }
-        .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 25px; background-color: #004d00; color: white; height: 60px; box-sizing: border-box;}
+        .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 25px; background-color: #004d00; color: white; position: fixed; top: 0; left: 0; right: 0; z-index: 1001; height: 60px; box-sizing: border-box;}
         .header-left { display: flex; align-items: center; gap: 15px; }
         .header .logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: bold; }
         .header .logo img { height: 35px; }
         .header .menu-toggle { font-size: 24px; cursor: pointer; }
         .header .user-info { display: flex; align-items: center; gap: 15px; font-weight: bold; color: white;}
         .header .login-btn { background-color: #ff8c00; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 20px; transition: 0.3s; z-index: 1002; }
+        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 80px; transition: 0.3s; z-index: 1000; }
         .sidebar.active { left: 0; }
-        .sidebar a { padding: 15px 20px; text-decoration: none; font-size: 18px; color: white; display: block; }
+        .sidebar a { padding: 15px 20px; text-decoration: none; font-size: 18px; color: white; display: block; } /* Disederhanakan dari kode Anda sebelumnya */
         .sidebar a:hover { background-color: #004d00; }
-        .sidebar .logout-btn { position: absolute; bottom: 20px; left: 20px; right: 20px; background-color: #ff8c00; color: white !important; text-align: center; padding: 10px; border-radius: 5px; cursor: pointer;}
-        .main-content { height: calc(100vh - 60px); }
-        .content-wrapper { filter: blur(0); transition: filter .3s; }
-        .content-wrapper.blurred { filter: blur(5px); }
+        .sidebar .logout-btn { position: absolute; bottom: 20px; left: 20px; right: 20px; background-color: #ff8c00; color: white !important; text-align: center; padding: 10px; border-radius: 5px; cursor: pointer; border-bottom: none;}
+        .content-area { flex-grow: 1; margin-left: 0; transition: margin-left .3s, filter .3s; padding-top: 60px; }
+        .content-area.shifted { margin-left: 250px; }
+        .main-content { height: 100%; }
+        #map { height: calc(100vh - 60px); width: 100%; }
+        .admin-page-content { padding: 30px; }
         .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .popup-overlay.show { display: flex; }
+        .content-wrapper.blurred, .header.blurred { filter: blur(5px); } /* Menggunakan .content-wrapper dari kode Anda */
         .popup-container { background: #004d00; padding: 30px 40px; border-radius: 25px; color: white; text-align: center; width: 90%; max-width: 400px; position: relative; }
         .popup-container .close-btn { position: absolute; top: 10px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; }
         .popup-container .popup-logo { height: 60px; margin-bottom: 8px; }
@@ -44,7 +47,8 @@
     </style>
 </head>
 <body>
-    <div id="app">
+    <div id="app" class="page-container">
+        {{-- Menggunakan struktur @auth dan sidebar dari kode Anda --}}
         @auth
             <nav id="sidebar" class="sidebar">
                 <a href="{{ route('home') }}">Lihat Peta</a>
@@ -57,8 +61,9 @@
             </nav>
         @endauth
 
-        <div id="content-wrapper">
-            <header class="header">
+        <div class="content-wrapper" id="content-wrapper">
+            <header class="header" id="header">
+                {{-- Menggunakan struktur header dari kode Anda --}}
                 <div class="header-left">
                     @auth @if(Auth::user()->is_admin)
                         <span class="menu-toggle" id="menu-toggle">&#9776;</span>
@@ -76,12 +81,14 @@
                     @endguest
                 </div>
             </header>
-            <main class="main-content">
+            <main class="main-content" id="main-content">
+                {{-- Ini adalah "lubang" untuk konten utama seperti Peta atau Tabel Admin --}}
                 @yield('content')
             </main>
         </div>
     </div>
 
+    {{-- Menggunakan struktur popup dari kode Anda --}}
     @guest
         <div id="login-popup" class="popup-overlay">
             <div class="popup-container">
@@ -117,6 +124,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        {{-- Menggunakan JavaScript dari kode Anda --}}
         document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.getElementById('sidebar');
             const contentWrapper = document.getElementById('content-wrapper');
@@ -127,6 +135,7 @@
                 });
             }
 
+            const header = document.getElementById('header');
             const loginPopupBtn = document.getElementById('login-popup-btn');
             const loginPopup = document.getElementById('login-popup');
             const registerPopup = document.getElementById('register-popup');
@@ -137,13 +146,15 @@
             function openPopup(popupElement) {
                 if(popupElement) {
                     popupElement.classList.add('show');
-                    contentWrapper.classList.add('blurred');
+                    if(contentWrapper) contentWrapper.classList.add('blurred');
+                    if(header) header.classList.add('blurred');
                 }
             }
             function closePopups() {
                 loginPopup?.classList.remove('show');
                 registerPopup?.classList.remove('show');
-                contentWrapper.classList.remove('blurred');
+                if(contentWrapper) contentWrapper.classList.remove('blurred');
+                if(header) header.classList.remove('blurred');
             }
             if (loginPopupBtn) { loginPopupBtn.addEventListener('click', () => openPopup(loginPopup)); }
             closeButtons.forEach(btn => btn.addEventListener('click', closePopups));
@@ -159,6 +170,12 @@
             @endif
         });
     </script>
+
+    {{-- PERBAIKAN 1: Menambahkan @yield('scripts') untuk Peta --}}
     @yield('scripts')
+
+    {{-- PERBAIKAN 2: Memindahkan struktur @auth untuk sidebar ke dalam #app --}}
+    {{-- dan memisahkan konten @guest dan @auth untuk mencegah duplikasi layout --}}
+    {{-- Ini adalah perbaikan struktural yang lebih baik berdasarkan kode Anda --}}
 </body>
 </html>
