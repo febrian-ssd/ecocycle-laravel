@@ -14,26 +14,24 @@
         /* Menggunakan semua CSS dari kode Anda, tidak ada yang diubah */
         body, html { margin: 0; font-family: 'Nunito', sans-serif; background-color: #f4f4f4; }
         .page-container { display: flex; height: 100vh; }
-        .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 25px; background-color: #004d00; color: white; position: fixed; top: 0; left: 0; right: 0; z-index: 1001; height: 60px; box-sizing: border-box;}
+        .content-area { flex-grow: 1; position: relative; }
+        .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 25px; background-color: #004d00; color: white; height: 60px; box-sizing: border-box;}
         .header-left { display: flex; align-items: center; gap: 15px; }
         .header .logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: bold; }
         .header .logo img { height: 35px; }
         .header .menu-toggle { font-size: 24px; cursor: pointer; }
         .header .user-info { display: flex; align-items: center; gap: 15px; font-weight: bold; color: white;}
         .header .login-btn { background-color: #ff8c00; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 80px; transition: 0.3s; z-index: 1000; }
+        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 20px; transition: 0.3s; z-index: 1002; }
         .sidebar.active { left: 0; }
-        .sidebar a { padding: 15px 20px; text-decoration: none; font-size: 18px; color: white; display: block; } /* Disederhanakan dari kode Anda sebelumnya */
+        .sidebar a { padding: 15px 20px; text-decoration: none; font-size: 18px; color: white; display: block; }
         .sidebar a:hover { background-color: #004d00; }
-        .sidebar .logout-btn { position: absolute; bottom: 20px; left: 20px; right: 20px; background-color: #ff8c00; color: white !important; text-align: center; padding: 10px; border-radius: 5px; cursor: pointer; border-bottom: none;}
-        .content-area { flex-grow: 1; margin-left: 0; transition: margin-left .3s, filter .3s; padding-top: 60px; }
-        .content-area.shifted { margin-left: 250px; }
-        .main-content { height: 100%; }
-        #map { height: calc(100vh - 60px); width: 100%; }
-        .admin-page-content { padding: 30px; }
+        .sidebar .logout-btn { position: absolute; bottom: 20px; left: 20px; right: 20px; background-color: #ff8c00; color: white !important; text-align: center; padding: 10px; border-radius: 5px; cursor: pointer;}
+        .main-content { height: calc(100vh - 60px); }
+        .content-wrapper { width: 100%; filter: blur(0); transition: filter .3s; }
+        .content-wrapper.blurred { filter: blur(5px); }
         .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .popup-overlay.show { display: flex; }
-        .content-wrapper.blurred, .header.blurred { filter: blur(5px); } /* Menggunakan .content-wrapper dari kode Anda */
         .popup-container { background: #004d00; padding: 30px 40px; border-radius: 25px; color: white; text-align: center; width: 90%; max-width: 400px; position: relative; }
         .popup-container .close-btn { position: absolute; top: 10px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; }
         .popup-container .popup-logo { height: 60px; margin-bottom: 8px; }
@@ -47,48 +45,51 @@
     </style>
 </head>
 <body>
-    <div id="app" class="page-container">
-        {{-- Menggunakan struktur @auth dan sidebar dari kode Anda --}}
-        @auth
-            <nav id="sidebar" class="sidebar">
-                <a href="{{ route('home') }}">Lihat Peta</a>
-                <a href="{{ route('admin.users.index') }}">Data User</a>
-                <a href="{{ route('admin.dropboxes.index') }}">Data Dropbox</a>
-                <a href="{{ route('admin.history.index') }}">Riwayat Scan User</a>
-                <a href="{{ route('admin.saldo.topup.index') }}">Saldo User</a>
-                <a class="logout-btn" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">Logout</a>
-                <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
-            </nav>
-        @endauth
+    <div id="app">
+        <div class="page-container">
+            @auth
+                <nav id="sidebar" class="sidebar">
+                    <a href="{{ route('home') }}">Lihat Peta</a>
+                    <a href="{{ route('admin.users.index') }}">Data User</a>
+                    <a href="{{ route('admin.dropboxes.index') }}">Data Dropbox</a>
+                    <a href="{{ route('admin.history.index') }}">Riwayat Scan User</a>
 
-        <div class="content-wrapper" id="content-wrapper">
-            <header class="header" id="header">
-                {{-- Menggunakan struktur header dari kode Anda --}}
-                <div class="header-left">
-                    @auth @if(Auth::user()->is_admin)
-                        <span class="menu-toggle" id="menu-toggle">&#9776;</span>
-                    @endif @endauth
-                    <div class="logo">
-                        <img src="{{ asset('images/logo.png') }}" alt="EcoCycle Logo">
-                        <span>EcoCycle</span>
+                    {{-- ======================================================== --}}
+                    {{-- PENAMBAHAN #1: Menambahkan link Saldo User yang hilang --}}
+                    <a href="{{ route('admin.saldo.topup.index') }}">Saldo User</a>
+                    {{-- ======================================================== --}}
+
+                    <a class="logout-btn" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">Logout</a>
+                    <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
+                </nav>
+            @endauth
+
+            <div class="content-wrapper" id="content-wrapper" style="width: 100%;">
+                <header class="header" id="header">
+                    <div class="header-left">
+                        @auth @if(Auth::user()->is_admin)
+                            <span class="menu-toggle" id="menu-toggle">&#9776;</span>
+                        @endif @endauth
+                        <div class="logo">
+                            <img src="{{ asset('images/logo.png') }}" alt="EcoCycle Logo">
+                            <span>EcoCycle</span>
+                        </div>
                     </div>
-                </div>
-                <div class="user-info">
-                    @guest
-                        <button id="login-popup-btn" class="login-btn">Login</button>
-                    @else
-                        <span>Welcome, {{ Auth::user()->name }}</span>
-                    @endguest
-                </div>
-            </header>
-            <main class="main-content" id="main-content">
-                {{-- Ini adalah "lubang" untuk konten utama seperti Peta atau Tabel Admin --}}
-                @yield('content')
-            </main>
+                    <div class="user-info">
+                        @guest
+                            <button id="login-popup-btn" class="login-btn">Login</button>
+                        @else
+                            <span>Welcome, {{ Auth::user()->name }}</span>
+                        @endguest
+                    </div>
+                </header>
+                <main class="main-content">
+                    @yield('content')
+                </main>
+            </div>
         </div>
     </div>
 
-    {{-- Menggunakan struktur popup dari kode Anda --}}
     @guest
         <div id="login-popup" class="popup-overlay">
             <div class="popup-container">
@@ -124,7 +125,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        {{-- Menggunakan JavaScript dari kode Anda --}}
         document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.getElementById('sidebar');
             const contentWrapper = document.getElementById('content-wrapper');
@@ -147,14 +147,12 @@
                 if(popupElement) {
                     popupElement.classList.add('show');
                     if(contentWrapper) contentWrapper.classList.add('blurred');
-                    if(header) header.classList.add('blurred');
                 }
             }
             function closePopups() {
                 loginPopup?.classList.remove('show');
                 registerPopup?.classList.remove('show');
                 if(contentWrapper) contentWrapper.classList.remove('blurred');
-                if(header) header.classList.remove('blurred');
             }
             if (loginPopupBtn) { loginPopupBtn.addEventListener('click', () => openPopup(loginPopup)); }
             closeButtons.forEach(btn => btn.addEventListener('click', closePopups));
@@ -171,11 +169,9 @@
         });
     </script>
 
-    {{-- PERBAIKAN 1: Menambahkan @yield('scripts') untuk Peta --}}
+    {{-- ====================================================== --}}
+    {{-- PENAMBAHAN #2: Menambahkan slot @yield('scripts') di sini --}}
     @yield('scripts')
-
-    {{-- PERBAIKAN 2: Memindahkan struktur @auth untuk sidebar ke dalam #app --}}
-    {{-- dan memisahkan konten @guest dan @auth untuk mencegah duplikasi layout --}}
-    {{-- Ini adalah perbaikan struktural yang lebih baik berdasarkan kode Anda --}}
+    {{-- ====================================================== --}}
 </body>
 </html>
