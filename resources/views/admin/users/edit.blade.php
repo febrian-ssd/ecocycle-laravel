@@ -6,7 +6,7 @@
 <style>
     .admin-page-content {
         padding: 30px;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, #f1f8ff 0%, #e6f3ff 100%);
         min-height: calc(100vh - 70px);
     }
 
@@ -186,9 +186,10 @@
     .form-section {
         margin-bottom: 40px;
         padding: 30px;
-        background: #f8f9fa;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
         border-radius: 15px;
-        border: 1px solid #e9ecef;
+        border: 1px solid #e3f2fd;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
 
     .form-section-title {
@@ -360,14 +361,14 @@
     }
 
     .btn-primary-custom {
-        background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+        background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
         color: white;
-        box-shadow: 0 5px 15px rgba(0,77,0,0.3);
+        box-shadow: 0 5px 15px rgba(25,118,210,0.3);
     }
 
     .btn-primary-custom:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0,77,0,0.4);
+        box-shadow: 0 8px 25px rgba(25,118,210,0.4);
         color: white;
     }
 

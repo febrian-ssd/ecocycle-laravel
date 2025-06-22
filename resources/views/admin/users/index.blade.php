@@ -503,7 +503,10 @@
                                 @endif
                             </td>
                             <td>
-                                @if($user->last_login_at && $user->last_login_at->diffInMinutes(now()) < 5)
+                                @php
+                                    $isOnline = $user->last_login_at && $user->last_login_at->diffInMinutes(now()) < 5;
+                                @endphp
+                                @if($isOnline)
                                     <span class="status-badge online">
                                         <i class="fas fa-circle"></i> Online
                                     </span>
@@ -516,6 +519,7 @@
                             <td>
                                 @if($user->last_login_at)
                                     <span class="text-muted">{{ $user->last_login_at->diffForHumans() }}</span>
+                                    <br><small class="text-success">{{ $user->last_login_at->format('d/m/Y H:i') }}</small>
                                 @else
                                     <span class="text-muted">Belum pernah login</span>
                                 @endif
@@ -622,6 +626,48 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }, 5000);
+
+    // Auto-refresh status setiap 30 detik
+    setInterval(function() {
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Parse response dan update status badges
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(html, 'text/html');
+            const currentTable = document.querySelector('#usersTable tbody');
+            const newTable = newDoc.querySelector('#usersTable tbody');
+
+            if (currentTable && newTable) {
+                // Update hanya status badges
+                const currentRows = currentTable.querySelectorAll('tr[data-role]');
+                const newRows = newTable.querySelectorAll('tr[data-role]');
+
+                currentRows.forEach((row, index) => {
+                    if (newRows[index]) {
+                        const currentStatusCell = row.children[3]; // Status column
+                        const currentTimeCell = row.children[4];   // Last login column
+                        const newStatusCell = newRows[index].children[3];
+                        const newTimeCell = newRows[index].children[4];
+
+                        if (currentStatusCell && newStatusCell) {
+                            currentStatusCell.innerHTML = newStatusCell.innerHTML;
+                        }
+                        if (currentTimeCell && newTimeCell) {
+                            currentTimeCell.innerHTML = newTimeCell.innerHTML;
+                        }
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.log('Auto-refresh error:', error);
+        });
+    }, 30000); // Refresh every 30 seconds
 });
 </script>
 @endsection
