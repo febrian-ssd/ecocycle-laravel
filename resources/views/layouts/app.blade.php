@@ -8,8 +8,8 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
-    {{-- Memindahkan semua style ke dalam satu file utama --}}
     <style>
         body, html { height: 100%; margin: 0; font-family: 'Nunito', sans-serif; background-color: #f4f4f4; }
         .page-container { display: flex; height: 100vh; }
@@ -19,20 +19,26 @@
         .header .logo img { height: 35px; margin-right: 10px; }
         .header .menu-toggle { font-size: 24px; cursor: pointer; margin-right: 15px; }
         .header .user-info { display: flex; align-items: center; gap: 15px; font-weight: bold; color: white;}
-        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 80px; transition: 0.3s; z-index: 1000; }
+        .header .user-info a { color: #ffc107; text-decoration: none; font-weight: bold; }
+        .header .user-info .login-btn { background-color: #ff8c00; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 80px; transition: 0.3s; z-index: 1000; display: flex; flex-direction: column; }
         .sidebar.active { left: 0; }
         .content-area { flex-grow: 1; margin-left: 0; transition: margin-left .3s; padding-top: 60px; }
         .content-area.shifted { margin-left: 250px; }
         .main-content { height: 100%; }
         #map { height: calc(100vh - 60px); width: 100%; }
         .admin-page-content { padding: 30px; }
+        .card .border-left-danger { border-left: .25rem solid #e74a3b !important; }
+        .card .border-left-info { border-left: .25rem solid #36b9cc !important; }
+        .card .border-left-secondary { border-left: .25rem solid #858796 !important; }
+        .text-xs { font-size: .7rem; }
     </style>
 </head>
 <body>
     <div id="app" class="page-container">
         @auth
+            {{-- Hanya tampilkan sidebar jika yang login adalah admin --}}
             @if(Auth::user()->is_admin)
-                {{-- PERUBAHAN UTAMA: Memanggil file sidebar --}}
                 @include('layouts.sidebar')
             @endif
         @endauth
@@ -50,11 +56,34 @@
                         <span>EcoCycle</span>
                     </div>
                 </div>
+
+                {{-- === BAGIAN YANG DIPERBAIKI === --}}
                 <div class="user-info">
-                    @auth
+                    @guest
+                        {{-- Jika pengunjung, tampilkan tombol Login --}}
+                        <a href="{{ route('login') }}" class="login-btn">Login</a>
+                    @else
+                        {{-- Jika sudah login (baik user maupun admin) --}}
                         <span>Welcome, {{ Auth::user()->name }}</span>
-                    @endauth
+
+                        {{-- Tombol Profile Icon (hanya untuk Admin) --}}
+                        @if(Auth::user()->is_admin)
+                            <i class="fas fa-user-circle fa-2x"></i>
+                        @endif
+
+                        {{-- Tombol Logout ini sekarang muncul untuk SEMUA yang sudah login --}}
+                        {{-- (jika Anda ingin admin hanya bisa logout dari sidebar, hapus link di bawah ini) --}}
+                        <a href="{{ route('logout') }}"
+                           onclick="event.preventDefault();
+                                         document.getElementById('header-logout-form').submit();">
+                           Logout
+                        </a>
+                        <form id="header-logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                            @csrf
+                        </form>
+                    @endguest
                 </div>
+                {{-- ============================== --}}
             </header>
 
             <main class="main-content">
@@ -62,6 +91,8 @@
             </main>
         </div>
     </div>
+
+    {{-- Popup Login/Register tidak kita gunakan di web admin, jadi bisa dihapus jika mau --}}
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
