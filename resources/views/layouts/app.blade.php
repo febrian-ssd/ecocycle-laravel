@@ -4,35 +4,44 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>EcoCycle Admin</title>
+    <title>EcoCycle</title>
+    <link rel="dns-prefetch" href="//fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     <style>
         /* CSS Utama Aplikasi Web Anda */
-        body, html { margin: 0; font-family: 'Nunito', sans-serif; background-color: #f8f9fc; }
-        .page-container { display: flex; }
-        .content-wrapper { width: 100%; transition: margin-left .3s; }
-        .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 25px; background-color: #ffffff; color: #5a5c69; border-bottom: 1px solid #e3e6f0; }
+        body, html { margin: 0; font-family: 'Nunito', sans-serif; background-color: #f4f4f4; }
+        .page-container { display: flex; height: 100vh; }
+        .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 25px; background-color: #004d00; color: white; position: fixed; top: 0; left: 0; right: 0; z-index: 1001; height: 60px; box-sizing: border-box;}
         .header-left { display: flex; align-items: center; gap: 15px; }
-        .header .logo { display: flex; align-items: center; gap: 10px; font-size: 1.25rem; font-weight: bold; color: #4e73df; text-decoration: none; }
+        .header .logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: bold; }
         .header .logo img { height: 35px; }
-        .header .menu-toggle { font-size: 1.25rem; cursor: pointer; color: #858796; background: none; border: 1px solid #d1d3e2; border-radius: .25rem; padding: .25rem .75rem; }
-        .header .user-info { display: flex; align-items: center; gap: 15px; font-weight: bold; color: #858796;}
+        .header .menu-toggle { font-size: 24px; cursor: pointer; }
+        .header .user-info { display: flex; align-items: center; gap: 15px; font-weight: bold; color: white;}
         .header .login-btn { background-color: #ff8c00; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .sidebar { min-width: 250px; max-width: 250px; background-color: #003300; color: #fff; transition: margin-left .3s;}
-        .sidebar .sidebar-heading { padding: 1rem 1.25rem; font-size: 1.2rem; font-weight: bold; text-align: center; }
-        .sidebar .list-group-item { background-color: #003300; color: rgba(255,255,255,.8); border: none; padding: 1rem 1.25rem; text-decoration: none; display: block;}
-        .sidebar .list-group-item:hover, .sidebar .list-group-item.active { background-color: #004d00; color: white; }
-        .sidebar .logout-btn { background-color: #ff8c00; color: white !important; text-align: center; border-radius: 5px; cursor: pointer; border: none;}
-        .main-content { min-height: calc(100vh - 56px); }
-        #map { height: calc(100vh - 56px); width: 100%; }
+        .sidebar { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background-color: #003300; padding-top: 80px; transition: 0.3s; z-index: 1000; }
+        .sidebar.active { left: 0; }
+        .content-area { flex-grow: 1; margin-left: 0; transition: margin-left .3s, filter .3s; padding-top: 60px; }
         .admin-page-content { padding: 30px; }
+        #map { height: calc(100vh - 60px); width: 100%; }
 
-        /* Style untuk Popup */
-        .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(5px); }
+        /* === STYLE BARU DAN PENTING UNTUK POPUP === */
+        .popup-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 2000;
+        }
         .popup-overlay.show { display: flex; }
-        .popup-container { background: #004d00; padding: 30px 40px; border-radius: 25px; color: white; text-align: center; width: 90%; max-width: 400px; position: relative; }
+        .content-area.blurred, .header.blurred { filter: blur(5px); }
+        .popup-container {
+            background: #004d00;
+            padding: 30px 40px; border-radius: 25px; color: white;
+            text-align: center; width: 90%; max-width: 400px; position: relative;
+        }
         .popup-container .close-btn { position: absolute; top: 10px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; }
         .popup-container .popup-logo { height: 60px; margin-bottom: 8px; }
         .popup-container h3 { margin-top:0; margin-bottom: 20px; font-weight: bold; }
@@ -47,51 +56,39 @@
 <body>
     <div id="app" class="page-container">
         @auth
-            @include('layouts.sidebar')
-        @else
-            {{-- Jika user adalah tamu (belum login), kita tampilkan halaman dengan popup --}}
-            <div class="content-wrapper" id="content-wrapper" style="width: 100%; margin-left: 0;">
-                <header class="header" id="header">
-                    <div class="header-left">
-                        <div class="logo">
-                            <img src="{{ asset('images/logo.png') }}" alt="EcoCycle Logo">
-                            <span>EcoCycle</span>
-                        </div>
-                    </div>
-                    <div class="user-info">
-                        <button id="login-popup-btn" class="login-btn">Login</button>
-                    </div>
-                </header>
-                <main class="main-content" id="main-content">
-                    @yield('content')
-                </main>
-            </div>
-        @endguest
-
-        @auth
-            {{-- Jika user sudah login --}}
-            <div class="content-area" id="content-area">
-                <header class="header">
-                    <div class="header-left">
-                        @if(Auth::user()->is_admin)
-                            <span class="menu-toggle" id="menu-toggle">&#9776;</span>
-                        @endif
-                        <div class="logo">
-                            <img src="{{ asset('images/logo.png') }}" alt="EcoCycle Logo">
-                            <span>EcoCycle</span>
-                        </div>
-                    </div>
-                    <div class="user-info">
-                        <span>Welcome, {{ Auth::user()->name }}</span>
-                    </div>
-                </header>
-                <main class="main-content">
-                    @yield('content')
-                </main>
-            </div>
+            @if(Auth::user()->is_admin)
+                @include('layouts.sidebar')
+            @endif
         @endauth
+
+        {{-- Wrapper ini untuk efek blur --}}
+        <div class="content-wrapper" id="content-wrapper">
+            <header class="header" id="header">
+                <div class="header-left">
+                    @auth @if(Auth::user()->is_admin)
+                        <span class="menu-toggle" id="menu-toggle">&#9776;</span>
+                    @endif @endauth
+                    <div class="logo">
+                        <img src="{{ asset('images/logo.png') }}" alt="EcoCycle Logo">
+                        <span>EcoCycle</span>
+                    </div>
+                </div>
+                <div class="user-info">
+                    @guest
+                        <button id="login-popup-btn" class="login-btn">Login</button>
+                    @else
+                        <span>Welcome, {{ Auth::user()->name }}</span>
+                    @endguest
+                </div>
+            </header>
+
+            <main class="main-content" id="main-content">
+                @yield('content')
+            </main>
+        </div>
     </div>
 
+    {{-- KODE POPUP (HANYA UNTUK TAMU) --}}
     @guest
     <div id="login-popup" class="popup-overlay">
         <div class="popup-container">
@@ -113,6 +110,7 @@
             </form>
         </div>
     </div>
+
     <div id="register-popup" class="popup-overlay">
         <div class="popup-container">
             <span class="close-btn" data-close-popup>&times;</span>
@@ -123,7 +121,7 @@
                 <div class="input-wrapper"><i class="fas fa-user input-icon"></i><input type="text" name="name" class="form-control" required placeholder="Nama Lengkap"></div>
                 <div class="input-wrapper"><i class="fas fa-envelope input-icon"></i><input type="email" name="email" class="form-control" required placeholder="Email"></div>
                 <div class="input-wrapper"><i class="fas fa-lock input-icon"></i><input type="password" name="password" class="form-control" required placeholder="Password (min. 8 karakter)"></div>
-                <div class="input-wrapper"><i class="fas fa-lock input-icon"></i><input type="password" name="password_confirmation" class="form-control" required placeholder="Konfirmasi Password"></div>
+                 <div class="input-wrapper"><i class="fas fa-lock input-icon"></i><input type="password" name="password_confirmation" class="form-control" required placeholder="Konfirmasi Password"></div>
                 <button type="submit" class="btn-submit">Register</button>
                 <div class="auth-link">Sudah punya akun? <a id="show-login-link">Login di sini</a></div>
             </form>
@@ -131,21 +129,8 @@
     </div>
     @endguest
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Script untuk toggle sidebar admin
-            const menuToggle = document.getElementById('menu-toggle');
-            const sidebar = document.querySelector('.sidebar');
-            const contentArea = document.querySelector('.content-area');
-            if (menuToggle && sidebar) {
-                menuToggle.addEventListener('click', () => {
-                    sidebar.style.marginLeft = sidebar.style.marginLeft === '0px' ? '-250px' : '0px';
-                    contentArea.style.marginLeft = contentArea.style.marginLeft === '250px' ? '0px' : '250px';
-                });
-            }
-
-            // Script untuk popup login dan register
             const contentWrapper = document.getElementById('content-wrapper');
             const header = document.getElementById('header');
             const loginPopupBtn = document.getElementById('login-popup-btn');
@@ -162,16 +147,35 @@
                     if(header) header.classList.add('blurred');
                 }
             }
+
             function closePopups() {
                 loginPopup?.classList.remove('show');
                 registerPopup?.classList.remove('show');
                 if(contentWrapper) contentWrapper.classList.remove('blurred');
                 if(header) header.classList.remove('blurred');
             }
-            if (loginPopupBtn) { loginPopupBtn.addEventListener('click', () => openPopup(loginPopup)); }
+
+            if (loginPopupBtn) {
+                loginPopupBtn.addEventListener('click', () => openPopup(loginPopup));
+            }
+
             closeButtons.forEach(btn => btn.addEventListener('click', closePopups));
-            if (showRegisterLink) { showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); closePopups(); openPopup(registerPopup); }); }
-            if (showLoginLink) { showLoginLink.addEventListener('click', (e) => { e.preventDefault(); closePopups(); openPopup(loginPopup); }); }
+
+            if (showRegisterLink) {
+                showRegisterLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    closePopups();
+                    openPopup(registerPopup);
+                });
+            }
+
+            if (showLoginLink) {
+                showLoginLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    closePopups();
+                    openPopup(loginPopup);
+                });
+            }
 
             // Jika ada error login/register dari server, buka popup yang sesuai
             @if($errors->any())
@@ -183,6 +187,10 @@
             @endif
         });
     </script>
+
+    {{-- PERBAIKAN: Menambahkan @yield('scripts') untuk Peta --}}
     @yield('scripts')
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
