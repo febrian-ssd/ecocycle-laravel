@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -11,33 +12,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('topup_requests', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->decimal('amount', 15, 2); // Nominal top up
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->enum('type', ['manual', 'transfer', 'ewallet'])->default('transfer');
-            $table->string('payment_method')->nullable(); // Bank Transfer, OVO, etc
-            $table->string('payment_proof')->nullable(); // Path ke bukti transfer
+        // Cek dan tambah kolom is_admin jika belum ada
+        if (!Schema::hasColumn('users', 'is_admin')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->boolean('is_admin')->default(false)->after('email_verified_at');
+            });
+        }
 
-            // Admin yang memproses
-            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->foreignId('rejected_by')->nullable()->constrained('users')->onDelete('set null');
+        // Cek dan tambah kolom saldo jika belum ada
+        if (!Schema::hasColumn('users', 'saldo')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->decimal('saldo', 15, 2)->default(0)->after('is_admin');
+            });
+        }
 
-            // Timestamp pemrosesan
-            $table->timestamp('approved_at')->nullable();
-            $table->timestamp('rejected_at')->nullable();
-
-            // Catatan
-            $table->text('admin_note')->nullable(); // Catatan dari admin
-            $table->text('user_note')->nullable(); // Catatan dari user
-
-            $table->timestamps();
-
-            // Indexes untuk performa
-            $table->index(['user_id', 'status']);
-            $table->index(['status', 'created_at']);
-        });
+        // Set default saldo untuk existing users
+        DB::table('users')->whereNull('saldo')->update(['saldo' => 0]);
     }
 
     /**
@@ -45,6 +35,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('topup_requests');
+        Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'saldo')) {
+                $table->dropColumn('saldo');
+            }
+
+            if (Schema::hasColumn('users', 'is_admin')) {
+                $table->dropColumn('is_admin');
+            }
+        });
     }
 };
