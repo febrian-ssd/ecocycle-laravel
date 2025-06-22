@@ -1,18 +1,17 @@
 {{-- File: resources/views/layouts/sidebar.blade.php --}}
 
+{{-- File: resources/views/layouts/sidebar.blade.php --}}
 <nav id="sidebar" class="sidebar">
     <a href="{{ route('home') }}">Lihat Peta</a>
     <a href="{{ route('admin.users.index') }}">Data User</a>
     <a href="{{ route('admin.dropboxes.index') }}">Data Dropbox</a>
     <a href="{{ route('admin.history.index') }}">Riwayat Scan User</a>
     <a href="{{ route('admin.saldo.topup.index') }}">Saldo User</a>
-
     <a class="logout-btn" href="{{ route('logout') }}"
-       onclick="event.preventDefault();
-                     document.getElementById('sidebar-logout-form').submit();">
+       onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
         Logout
     </a>
-    <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+    <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
         @csrf
     </form>
 </nav>
