@@ -20,14 +20,14 @@ return new class extends Migration
         }
 
         // Cek dan tambah kolom saldo jika belum ada
-        if (!Schema::hasColumn('users', 'saldo')) {
+        if (!Schema::hasColumn('users', 'balance_rp')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->decimal('saldo', 15, 2)->default(0)->after('is_admin');
+                $table->decimal('balance_rp', 15, 2)->default(0)->after('is_admin');
             });
         }
 
         // Set default saldo untuk existing users
-        DB::table('users')->whereNull('saldo')->update(['saldo' => 0]);
+        DB::table('users')->whereNull('balance_rp')->update(['balance_rp' => 0]);
     }
 
     /**
@@ -36,8 +36,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            if (Schema::hasColumn('users', 'saldo')) {
-                $table->dropColumn('saldo');
+            if (Schema::hasColumn('users', 'balance_rp')) {
+                $table->dropColumn('balance_rp');
             }
 
             if (Schema::hasColumn('users', 'is_admin')) {
