@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\HomeController;
@@ -38,7 +37,6 @@ Route::middleware(['auth'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-
     // Admin Dashboard Redirect
     Route::redirect('/', '/admin/users');
 
@@ -57,8 +55,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/', [DropboxController::class, 'store'])->name('store');
         Route::get('/{dropbox}/edit', [DropboxController::class, 'edit'])->name('edit');
         Route::put('/{dropbox}', [DropboxController::class, 'update'])->name('update');
-        Route::delete('/{dropbox}', [DropboxController::class, 'destroy'])->name('destroy'); // <- ROUTE YANG HILANG
-        Route::get('/{dropbox}', [DropboxController::class, 'show'])->name('show'); // Optional: untuk view detail
+        Route::delete('/{dropbox}', [DropboxController::class, 'destroy'])->name('destroy');
+        Route::get('/{dropbox}', [DropboxController::class, 'show'])->name('show');
     });
 
     // History Management Routes
@@ -71,11 +69,22 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::delete('/{history}', [HistoryController::class, 'destroy'])->name('destroy');
     });
 
-    // Saldo Management Routes
+    // Saldo Management Routes - LENGKAP
     Route::prefix('saldo')->name('saldo.')->group(function () {
         Route::prefix('topup')->name('topup.')->group(function () {
+            // GET routes
             Route::get('/', [SaldoController::class, 'topupIndex'])->name('index');
+            Route::get('/stats', [SaldoController::class, 'getStats'])->name('stats');
+            Route::get('/export', [SaldoController::class, 'export'])->name('export');
+            Route::get('/{topupRequest}', [SaldoController::class, 'show'])->name('show');
+
+            // POST routes
+            Route::post('/manual', [SaldoController::class, 'manualTopup'])->name('manual');
             Route::post('/{topupRequest}/approve', [SaldoController::class, 'approveTopup'])->name('approve');
+            Route::post('/{topupRequest}/reject', [SaldoController::class, 'rejectTopup'])->name('reject');
         });
+
+        // User History Route
+        Route::get('/user/{user}/history', [SaldoController::class, 'userHistory'])->name('user.history');
     });
 });
