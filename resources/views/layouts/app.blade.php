@@ -14,6 +14,24 @@
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
 
     <style>
+    .sidebar .sidebar-button {
+        display: block;
+        width: calc(100% - 20px);
+        margin: 5px 10px;
+        padding: 10px;
+        background-color: #f0f0f0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        text-align: center;
+        cursor: pointer;
+        text-decoration: none;
+        color: black;
+        font-family: sans-serif;
+    }
+    .sidebar .sidebar-button:hover {
+        background-color: #e0e0e0;
+    }
+
         /* CSS Anda yang sudah ada di sini, tidak perlu diubah */
         body, html { height: 100%; margin: 0; font-family: 'Nunito', sans-serif; background-color: #f4f4f4; }
         .page-container { display: flex; height: 100vh; }
