@@ -447,10 +447,6 @@
                 <i class="fas fa-list"></i>
                 Daftar Pengguna
             </h5>
-            <a href="{{ route('admin.users.create') }}" class="add-user-btn">
-                <i class="fas fa-plus"></i>
-                Tambah User
-            </a>
         </div>
 
         <div class="table-controls">
