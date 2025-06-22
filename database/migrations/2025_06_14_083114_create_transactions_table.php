@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -11,15 +12,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('type', ['topup', 'coin_exchange_to_rp', 'scan_reward']);
-            $table->decimal('amount_rp', 15, 2)->nullable();
-            $table->bigInteger('amount_coins')->nullable();
-            $table->string('description');
-            $table->timestamps();
-        });
+        // For MySQL/MariaDB, we need to use raw SQL to modify enum
+        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('topup', 'coin_exchange_to_rp', 'scan_reward', 'transfer_out', 'manual_topup') NOT NULL");
     }
 
     /**
@@ -27,6 +21,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transactions');
+        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('topup', 'coin_exchange_to_rp', 'scan_reward') NOT NULL");
     }
 };

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\TopupRequest;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
@@ -57,7 +58,7 @@ class SaldoController extends Controller
             $approvedRequests = 0;
             $totalRequests = 0;
             $totalAmount = 0;
-            $users = collect();
+            $users = User::where('is_admin', false)->orderBy('name')->get();
 
             return view('admin.saldo.topup_index', compact(
                 'topupRequests',
@@ -96,20 +97,31 @@ class SaldoController extends Controller
                 'status' => 'approved',
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
-                'admin_note' => 'Disetujui oleh admin'
+                'admin_note' => $request->input('admin_note', 'Disetujui oleh admin')
             ]);
 
             // Tambahkan saldo ke user
             $user = $topupRequest->user;
-            DB::table('users')
-                ->where('id', $topupRequest->user_id)
-                ->update([
-                    'balance_rp' => DB::raw('balance_rp + ' . $topupRequest->amount),
-                    'updated_at' => now()
-                ]);
+
+            // Pastikan kolom balance_rp ada
+            if (!Schema::hasColumn('users', 'balance_rp')) {
+                throw new \Exception('Kolom balance_rp tidak ditemukan di tabel users.');
+            }
+
+            // Update saldo user
+            $user->increment('balance_rp', $topupRequest->amount);
+
+            // Catat transaksi
+            Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'topup',
+                'amount_rp' => $topupRequest->amount,
+                'amount_coins' => null,
+                'description' => "Top up saldo disetujui oleh admin - Rp " . number_format($topupRequest->amount, 0, ',', '.')
+            ]);
 
             // Log aktivitas
-            Log::info("Top up approved: {$topupRequest->amount} for user {$user->name}");
+            Log::info("Top up approved: {$topupRequest->amount} for user {$user->name} by admin " . auth()->user()->name);
 
             DB::commit();
 
@@ -159,7 +171,7 @@ class SaldoController extends Controller
             ]);
 
             // Log aktivitas
-            Log::info("Top up rejected: {$topupRequest->amount} for user {$topupRequest->user->name}");
+            Log::info("Top up rejected: {$topupRequest->amount} for user {$topupRequest->user->name} by admin " . auth()->user()->name);
 
             DB::commit();
 
@@ -197,12 +209,7 @@ class SaldoController extends Controller
             }
 
             // Tambah saldo langsung
-            DB::table('users')
-                ->where('id', $user->id)
-                ->update([
-                    'balance_rp' => DB::raw('balance_rp + ' . $request->amount),
-                    'updated_at' => now()
-                ]);
+            $user->increment('balance_rp', $request->amount);
 
             // Buat record top up request untuk tracking jika tabel sudah ada
             if (Schema::hasTable('topup_requests')) {
@@ -217,8 +224,17 @@ class SaldoController extends Controller
                 ]);
             }
 
+            // Catat transaksi
+            Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'manual_topup',
+                'amount_rp' => $request->amount,
+                'amount_coins' => null,
+                'description' => "Top up manual oleh admin - " . ($request->note ?: 'Tanpa catatan khusus')
+            ]);
+
             // Log aktivitas
-            Log::info("Manual topup: {$request->amount} for user {$user->name}");
+            Log::info("Manual topup: {$request->amount} for user {$user->name} by admin " . auth()->user()->name);
 
             DB::commit();
 

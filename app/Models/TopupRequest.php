@@ -131,4 +131,25 @@ class TopupRequest extends Model
     {
         $this->attributes['amount'] = (float) str_replace(['Rp', '.', ',', ' '], '', $value);
     }
+
+    /**
+     * Check if request can be processed
+     */
+    public function canBeProcessed()
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Get processing admin name
+     */
+    public function getProcessedByAttribute()
+    {
+        if ($this->status === 'approved' && $this->approvedBy) {
+            return $this->approvedBy->name;
+        } elseif ($this->status === 'rejected' && $this->rejectedBy) {
+            return $this->rejectedBy->name;
+        }
+        return null;
+    }
 }
