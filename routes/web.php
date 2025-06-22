@@ -64,8 +64,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // History Management Routes
     Route::prefix('history')->name('history.')->group(function () {
         Route::get('/', [HistoryController::class, 'index'])->name('index');
-        Route::get('/{history}', [HistoryController::class, 'show'])->name('show'); // Optional: untuk view detail
-        Route::delete('/{history}', [HistoryController::class, 'destroy'])->name('destroy'); // Optional: untuk delete history
+        Route::get('/export', [HistoryController::class, 'export'])->name('export');
+        Route::get('/stats', [HistoryController::class, 'getStats'])->name('stats');
+        Route::get('/chart-data', [HistoryController::class, 'getChartData'])->name('chart-data');
+        Route::get('/{history}', [HistoryController::class, 'show'])->name('show');
+        Route::delete('/{history}', [HistoryController::class, 'destroy'])->name('destroy');
     });
 
     // Saldo Management Routes
