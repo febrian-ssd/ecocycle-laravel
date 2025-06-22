@@ -1,37 +1,39 @@
-{{-- File: resources/views/layouts/sidebar.blade.php (Versi Perbaikan) --}}
+<nav id="sidebar" class="sidebar">
+    <a href="{{ route('home') }}">Lihat Peta</a>
+    <a href="{{ route('admin.users.index') }}">Data User</a>
+    <a href="{{ route('admin.dropboxes.index') }}">Data Dropbox</a>
+    <a href="{{ route('admin.history.index') }}">Riwayat Scan User</a>
+    <a href="{{ route('admin.saldo.topup.index') }}">Saldo User</a>
 
-<div class="sidebar">
-    {{--
-      Mengecek apakah user sudah login dan apakah dia adalah admin.
-      Di database, nama kolomnya adalah 'is_admin', jadi kita gunakan itu.
-    --}}
-    @if(Auth::check() && Auth::user()->is_admin)
-
-        {{-- Menggunakan tag <a> untuk link, dan helper route() untuk URL --}}
-        <a class="sidebar-button" href="{{ route('home') }}">Lihat Peta</a>
-        <a class="sidebar-button" href="{{ route('admin.users.index') }}">Data User</a>
-        <a class="sidebar-button" href="{{ route('admin.dropboxes.index') }}">Data Dropbox</a>
-        <a class="sidebar-button" href="{{ route('admin.history.index') }}">Riwayat Scan User</a>
-
-        {{-- === INI MENU BARUNYA === --}}
-        <a class="sidebar-button" href="{{ route('admin.saldo.topup.index') }}">Saldo User</a>
-
-    @endif
-
-    {{--
-      Proses Logout harus menggunakan form dengan metode POST untuk keamanan.
-      Link ini akan men-submit form yang ada di bawahnya.
-    --}}
-    <a class="sidebar-button" href="{{ route('logout') }}"
-       onclick="event.preventDefault();
-                     document.getElementById('sidebar-logout-form').submit();">
+    <a class="logout-btn" href="{{ route('logout') }}"
+       onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
         Logout
     </a>
-
     <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
         @csrf
     </form>
-</div>
+</nav>
 
-
-{{-- Anda bisa menambahkan CSS ini di file layout utama (app.blade.php) agar link <a> terlihat seperti tombol --}}
+{{-- Pindahkan CSS ke file app.blade.php atau biarkan di sini jika lebih mudah --}}
+<style>
+#sidebar a {
+    display: block;
+    padding: 15px 20px;
+    text-decoration: none;
+    font-size: 18px;
+    color: white;
+    border-bottom: 1px solid #004d00;
+}
+#sidebar a:hover {
+    background-color: #004d00;
+}
+#sidebar .logout-btn {
+    background-color: #ff8c00;
+    color: white;
+    text-align: center;
+    margin: 20px;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+</style>
