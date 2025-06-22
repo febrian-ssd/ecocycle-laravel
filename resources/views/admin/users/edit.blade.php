@@ -27,11 +27,11 @@
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+        background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
     }
 
     .page-title {
-        color: #004d00;
+        color: #1976d2;
         font-weight: 700;
         margin: 0;
         display: flex;
@@ -41,7 +41,7 @@
     }
 
     .page-title i {
-        background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+        background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
         color: white;
         padding: 15px;
         border-radius: 15px;
@@ -60,7 +60,7 @@
     }
 
     .breadcrumb-custom .breadcrumb-item.active {
-        color: #004d00;
+        color: #1976d2;
         font-weight: 600;
     }
 
@@ -84,7 +84,7 @@
     }
 
     .card-header-custom {
-        background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+        background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
         color: white;
         padding: 25px 30px;
         border: none;
@@ -108,16 +108,16 @@
         text-align: center;
         margin-bottom: 40px;
         padding: 30px;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
         border-radius: 15px;
-        border: 2px dashed #dee2e6;
+        border: 2px dashed #e3f2fd;
     }
 
     .user-avatar-large {
         width: 120px;
         height: 120px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+        background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -125,7 +125,7 @@
         font-weight: 700;
         font-size: 3rem;
         margin-bottom: 20px;
-        box-shadow: 0 10px 30px rgba(0,77,0,0.3);
+        box-shadow: 0 10px 30px rgba(25,118,210,0.3);
         position: relative;
     }
 
@@ -136,7 +136,7 @@
         left: -5px;
         right: -5px;
         bottom: -5px;
-        border: 3px solid rgba(0,77,0,0.2);
+        border: 3px solid rgba(25,118,210,0.2);
         border-radius: 50%;
         animation: pulse 2s infinite;
     }
@@ -193,7 +193,7 @@
     }
 
     .form-section-title {
-        color: #004d00;
+        color: #1976d2;
         font-weight: 600;
         font-size: 1.2rem;
         margin-bottom: 20px;
@@ -203,7 +203,7 @@
     }
 
     .form-section-title i {
-        background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+        background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
         color: white;
         padding: 10px;
         border-radius: 8px;
@@ -248,8 +248,8 @@
     }
 
     .form-control-custom:focus {
-        border-color: #004d00;
-        box-shadow: 0 0 0 3px rgba(0,77,0,0.1);
+        border-color: #1976d2;
+        box-shadow: 0 0 0 3px rgba(25,118,210,0.1);
         outline: none;
         background: white;
     }
@@ -270,8 +270,8 @@
     }
 
     .form-select-custom:focus {
-        border-color: #004d00;
-        box-shadow: 0 0 0 3px rgba(0,77,0,0.1);
+        border-color: #1976d2;
+        box-shadow: 0 0 0 3px rgba(25,118,210,0.1);
         outline: none;
     }
 
@@ -299,7 +299,7 @@
     }
 
     .password-toggle:hover {
-        color: #004d00;
+        color: #1976d2;
     }
 
     /* Error Messages */
@@ -472,31 +472,6 @@
 
         .btn-custom {
             justify-content: center;
-        }
-    }
-
-    /* Dark Mode Support */
-    @media (prefers-color-scheme: dark) {
-        .admin-page-content {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-        }
-
-        .main-card,
-        .page-header {
-            background: #3c4b5c;
-            color: #ecf0f1;
-        }
-
-        .form-section {
-            background: #34495e;
-            border-color: #4a5568;
-        }
-
-        .form-control-custom,
-        .form-select-custom {
-            background: #2c3e50;
-            border-color: #4a5568;
-            color: #ecf0f1;
         }
     }
 </style>

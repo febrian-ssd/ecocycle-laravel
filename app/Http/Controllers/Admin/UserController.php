@@ -1,19 +1,31 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
+
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules;
 
 class UserController extends Controller
 {
     public function index()
     {
-        $users = User::all();
-        $adminCount = $users->where('is_admin', true)->count();
-        $onlineUsers = User::where('is_admin', false)->where('last_seen', '>=', now()->subMinutes(5))->count();
-        $offlineUsers = User::where('is_admin', false)->where(function ($query) {
-                                 $query->where('last_seen', '<', now()->subMinutes(5))->orWhereNull('last_seen');
-                             })->count();
+        $users = User::orderBy('created_at', 'desc')->get();
+
+        // Calculate statistics - PERBAIKAN: Gunakan last_login_at instead of last_seen
+        $adminCount = User::where('is_admin', true)->count();
+
+        // Count online users (logged in within last 5 minutes)
+        $onlineUsers = User::where('last_login_at', '>=', now()->subMinutes(5))->count();
+
+        // Count offline users
+        $offlineUsers = User::where(function ($query) {
+            $query->where('last_login_at', '<', now()->subMinutes(5))
+                  ->orWhereNull('last_login_at');
+        })->count();
+
         return view('admin.users.index', compact('users', 'adminCount', 'onlineUsers', 'offlineUsers'));
     }
 
@@ -24,31 +36,61 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'is_admin' => 'required|boolean',
-            'password' => 'nullable|string|min:8|confirmed',
-        ]);
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->is_admin = $request->is_admin;
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'is_admin' => ['required', 'boolean'],
+        ];
+
+        // Only validate password if it's provided
         if ($request->filled('password')) {
-            $user->password = bcrypt($request->password);
+            $rules['password'] = ['required', 'confirmed', Rules\Password::defaults()];
         }
-        $user->save();
-        return redirect()->route('admin.users.index')->with('success', 'Data user berhasil diupdate.');
+
+        $request->validate($rules);
+
+        try {
+            $updateData = [
+                'name' => $request->name,
+                'email' => $request->email,
+                'is_admin' => $request->boolean('is_admin'),
+            ];
+
+            // Only update password if provided
+            if ($request->filled('password')) {
+                $updateData['password'] = Hash::make($request->password);
+            }
+
+            $user->update($updateData);
+
+            return redirect()->route('admin.users.index')
+                           ->with('success', 'Data user berhasil diperbarui!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                           ->withInput()
+                           ->with('error', 'Gagal memperbarui user: ' . $e->getMessage());
+        }
     }
 
-    // METHOD BARU UNTUK HAPUS
     public function destroy(User $user)
     {
-        if (auth()->id() == $user->id) {
+        // Prevent admin from deleting themselves
+        if ($user->id === auth()->id()) {
             return redirect()->route('admin.users.index')
-                             ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+                           ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri!');
         }
-        $user->delete();
-        return redirect()->route('admin.users.index')
-                         ->with('success', 'User berhasil dihapus.');
+
+        try {
+            $userName = $user->name;
+            $user->delete();
+
+            return redirect()->route('admin.users.index')
+                           ->with('success', "User {$userName} berhasil dihapus!");
+
+        } catch (\Exception $e) {
+            return redirect()->route('admin.users.index')
+                           ->with('error', 'Gagal menghapus user: ' . $e->getMessage());
+        }
     }
 }
