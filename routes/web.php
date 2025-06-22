@@ -14,7 +14,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::redirect('/', '/admin/users');
-    
+
     // User Management
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
@@ -34,4 +34,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Saldo Management
     Route::get('/saldo/topup', [SaldoController::class, 'topupIndex'])->name('saldo.topup.index');
     Route::post('/saldo/topup/{topupRequest}/approve', [SaldoController::class, 'approveTopup'])->name('saldo.topup.approve');
+    Route::delete('/admin/dropboxes/{dropbox}', [DropboxController::class, 'destroy'])->name('admin.dropboxes.destroy');
 });
