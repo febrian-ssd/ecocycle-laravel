@@ -14,16 +14,16 @@ class UserController extends Controller
     {
         $users = User::orderBy('created_at', 'desc')->get();
 
-        // Calculate statistics - PERBAIKAN: Gunakan last_login_at instead of last_seen
+        // Calculate statistics - PERBAIKAN: Gunakan kolom yang benar
         $adminCount = User::where('is_admin', true)->count();
 
-        // Count online users (logged in within last 5 minutes)
-        $onlineUsers = User::where('last_login_at', '>=', now()->subMinutes(5))->count();
+        // Count online users - gunakan updated_at sebagai indikator aktivitas terakhir
+        $onlineUsers = User::where('updated_at', '>=', now()->subMinutes(5))->count();
 
         // Count offline users
         $offlineUsers = User::where(function ($query) {
-            $query->where('last_login_at', '<', now()->subMinutes(5))
-                  ->orWhereNull('last_login_at');
+            $query->where('updated_at', '<', now()->subMinutes(5))
+                  ->orWhereNull('updated_at');
         })->count();
 
         return view('admin.users.index', compact('users', 'adminCount', 'onlineUsers', 'offlineUsers'));

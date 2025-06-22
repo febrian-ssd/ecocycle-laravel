@@ -470,7 +470,7 @@
                             <th>Pengguna</th>
                             <th>Role</th>
                             <th>Status</th>
-                            <th>Terakhir Login</th>
+                            <th>Aktivitas Terakhir</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -504,7 +504,8 @@
                             </td>
                             <td>
                                 @php
-                                    $isOnline = $user->last_login_at && $user->last_login_at->diffInMinutes(now()) < 5;
+                                    // Gunakan updated_at sebagai indikator aktivitas
+                                    $isOnline = $user->updated_at && $user->updated_at->diffInMinutes(now()) < 5;
                                 @endphp
                                 @if($isOnline)
                                     <span class="status-badge online">
@@ -517,11 +518,11 @@
                                 @endif
                             </td>
                             <td>
-                                @if($user->last_login_at)
-                                    <span class="text-muted">{{ $user->last_login_at->diffForHumans() }}</span>
-                                    <br><small class="text-success">{{ $user->last_login_at->format('d/m/Y H:i') }}</small>
+                                @if($user->updated_at)
+                                    <span class="text-muted">{{ $user->updated_at->diffForHumans() }}</span>
+                                    <br><small class="text-success">{{ $user->updated_at->format('d/m/Y H:i') }}</small>
                                 @else
-                                    <span class="text-muted">Belum pernah login</span>
+                                    <span class="text-muted">Belum ada aktivitas</span>
                                 @endif
                             </td>
                             <td>
