@@ -1,4 +1,5 @@
 <?php
+// app/Models/TopupRequest.php - FINAL TYPE SAFE VERSION
 
 namespace App\Models;
 
@@ -103,11 +104,12 @@ class TopupRequest extends Model
     }
 
     /**
-     * Accessor untuk format rupiah
+     * Accessor untuk format rupiah - FIXED TYPE ISSUE
      */
     public function getFormattedAmountAttribute()
     {
-        return 'Rp ' . number_format($this->amount, 0, ',', '.');
+        $amount = $this->amount ? (float) $this->amount : 0;
+        return 'Rp ' . number_format($amount, 0, ',', '.');
     }
 
     /**
@@ -129,7 +131,9 @@ class TopupRequest extends Model
      */
     public function setAmountAttribute($value)
     {
-        $this->attributes['amount'] = (float) str_replace(['Rp', '.', ',', ' '], '', $value);
+        // Clean up the value and convert to float
+        $cleanValue = str_replace(['Rp', '.', ',', ' '], '', $value);
+        $this->attributes['amount'] = (float) $cleanValue;
     }
 
     /**
@@ -151,5 +155,23 @@ class TopupRequest extends Model
             return $this->rejectedBy->name;
         }
         return null;
+    }
+
+    /**
+     * Get safe amount as float
+     */
+    public function getAmountAsFloat()
+    {
+        return $this->amount ? (float) $this->amount : 0.0;
+    }
+
+    /**
+     * Format amount for display
+     */
+    public function formatAmount($amount = null)
+    {
+        $value = $amount ?? $this->amount;
+        $floatValue = $value ? (float) $value : 0;
+        return 'Rp ' . number_format($floatValue, 0, ',', '.');
     }
 }

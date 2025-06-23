@@ -1,4 +1,5 @@
 <?php
+// app/Models/Transaction.php - CLEAN SINGLE FILE
 
 namespace App\Models;
 
@@ -73,14 +74,15 @@ class Transaction extends Model
     }
 
     /**
-     * Accessor untuk format rupiah
+     * Accessor untuk format rupiah - FIXED TYPE ISSUE
      */
     public function getFormattedAmountRpAttribute()
     {
         if (!$this->amount_rp) return null;
 
-        $prefix = $this->amount_rp >= 0 ? '+' : '';
-        return $prefix . 'Rp ' . number_format(abs($this->amount_rp), 0, ',', '.');
+        $amount = (float) $this->amount_rp;
+        $prefix = $amount >= 0 ? '+' : '';
+        return $prefix . 'Rp ' . number_format(abs($amount), 0, ',', '.');
     }
 
     /**

@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Admin/HistoryController.php - FINAL CARBON SAFE VERSION
 
 namespace App\Http\Controllers\Admin;
 
@@ -14,9 +15,6 @@ class HistoryController extends Controller
      */
     public function index()
     {
-        // Ambil semua data riwayat dari yang paling baru.
-        // 'with' digunakan untuk mengambil data relasi (user & dropbox)
-        // agar lebih efisien dan cepat (mengatasi N+1 problem).
         $histories = History::with(['user', 'dropbox'])
                            ->latest()
                            ->get();
@@ -26,9 +24,9 @@ class HistoryController extends Controller
         $successScans = $histories->where('status', 'success')->count();
         $failedScans = $histories->where('status', 'failed')->count();
 
-        // Hitung scan hari ini
+        // Hitung scan hari ini - CARBON SAFE VERSION
         $todayScans = $histories->filter(function ($history) {
-            return $history->created_at->isToday();
+            return $this->isCreatedToday($history);
         })->count();
 
         return view('admin.history.index', compact(
@@ -38,6 +36,27 @@ class HistoryController extends Controller
             'failedScans',
             'todayScans'
         ));
+    }
+
+    /**
+     * Safe method to check if history was created today
+     */
+    private function isCreatedToday($history)
+    {
+        try {
+            if (!$history->created_at) {
+                return false;
+            }
+
+            // Convert to Carbon if it's not already
+            $date = $history->created_at instanceof \Carbon\Carbon
+                ? $history->created_at
+                : Carbon::parse($history->created_at);
+
+            return $date->isToday();
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -73,13 +92,16 @@ class HistoryController extends Controller
     {
         $histories = History::all();
 
+        // CARBON SAFE: Use helper method for today check
+        $todayCount = $histories->filter(function ($history) {
+            return $this->isCreatedToday($history);
+        })->count();
+
         return response()->json([
             'total' => $histories->count(),
             'success' => $histories->where('status', 'success')->count(),
             'failed' => $histories->where('status', 'failed')->count(),
-            'today' => $histories->filter(function ($history) {
-                return $history->created_at->isToday();
-            })->count()
+            'today' => $todayCount
         ]);
     }
 
@@ -130,8 +152,8 @@ class HistoryController extends Controller
                     $history->user ? $history->user->email : 'N/A',
                     $history->dropbox ? $history->dropbox->location_name : 'Dropbox Telah Dihapus',
                     ucfirst($history->status),
-                    $history->created_at->format('H:i:s'),
-                    $history->created_at->format('d/m/Y')
+                    $history->created_at ? $history->created_at->format('H:i:s') : '',
+                    $history->created_at ? $history->created_at->format('d/m/Y') : ''
                 ]);
             }
 

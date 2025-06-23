@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Api/HistoryController.php - NEW FILE
+// app/Http/Controllers/Api/HistoryController.php - CLEAN SINGLE FILE
 
 namespace App\Http\Controllers\Api;
 
@@ -56,6 +56,9 @@ class HistoryController extends Controller
         $successfulScans = History::where('user_id', $user->id)->where('status', 'success')->count();
         $totalCoinsEarned = History::where('user_id', $user->id)->sum('coins_earned');
         $totalWasteWeight = History::where('user_id', $user->id)->sum('weight');
+
+        // Convert decimal to float for proper calculation - FIXED TYPE ISSUE
+        $totalWasteWeight = $totalWasteWeight ? (float) $totalWasteWeight : 0.0;
 
         // Statistik per jenis sampah
         $wasteTypeStats = History::where('user_id', $user->id)
@@ -114,7 +117,7 @@ class HistoryController extends Controller
                     'description' => $transaction->description,
                     'created_at' => $transaction->created_at,
                     'formatted_amount_rp' => $transaction->amount_rp ?
-                        ($transaction->amount_rp >= 0 ? '+' : '') . 'Rp ' . number_format($transaction->amount_rp, 0, ',', '.') :
+                        ($transaction->amount_rp >= 0 ? '+' : '') . 'Rp ' . number_format((float) $transaction->amount_rp, 0, ',', '.') :
                         null,
                     'formatted_amount_coins' => $transaction->amount_coins ?
                         ($transaction->amount_coins >= 0 ? '+' : '') . $transaction->amount_coins . ' koin' :
@@ -142,6 +145,9 @@ class HistoryController extends Controller
         $totalCoinsEarned = History::where('user_id', $user->id)->sum('coins_earned');
         $totalTransactions = Transaction::where('user_id', $user->id)->count();
 
+        // Convert decimal to float
+        $totalWasteWeight = $totalWasteWeight ? (float) $totalWasteWeight : 0.0;
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -152,7 +158,7 @@ class HistoryController extends Controller
                     'balance_rp' => $user->balance_rp ?? 0,
                     'balance_coins' => $user->balance_coins ?? 0,
                     'eco_coins' => $user->balance_coins ?? 0, // alias
-                    'formatted_balance_rp' => 'Rp ' . number_format($user->balance_rp ?? 0, 0, ',', '.'),
+                    'formatted_balance_rp' => 'Rp ' . number_format((float) ($user->balance_rp ?? 0), 0, ',', '.'),
                     'member_since' => $user->created_at,
                 ],
                 'statistics' => [
