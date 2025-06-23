@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DropboxController;
 use App\Http\Controllers\Api\EcopayController;
 use App\Http\Controllers\Api\ScanController;
-use App\Models\TopupRequest; // <-- Import model baru
+use App\Http\Controllers\Api\HistoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,34 +20,62 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Rute yang memerlukan otentikasi (wajib login)
 Route::middleware('auth:sanctum')->group(function () {
+
+    // === AUTH & USER ROUTES ===
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/profile', [HistoryController::class, 'getUserProfile']);
 
-    // Rute untuk Peta
+    // === DROPBOX & MAP ROUTES ===
     Route::get('/dropboxes', [DropboxController::class, 'index']);
+    Route::get('/dropboxes/{id}', [DropboxController::class, 'show']);
+    Route::get('/dropboxes/nearby', [DropboxController::class, 'getNearby']);
+    Route::get('/dropboxes/stats', [DropboxController::class, 'getStats']);
 
-    // Rute untuk EcoPay
+    // === ECOPAY & WALLET ROUTES ===
     Route::get('/wallet', [EcopayController::class, 'getWallet']);
+    Route::get('/balance/summary', [EcopayController::class, 'getBalanceSummary']);
+
+    // === TRANSACTION ROUTES ===
     Route::get('/transactions', [EcopayController::class, 'getTransactions']);
+    Route::get('/transactions/history', [HistoryController::class, 'getTransactionHistory']);
     Route::post('/transfer', [EcopayController::class, 'transfer']);
-    Route::post('/coins/exchange', [EcopayController::class, 'exchangeCoins']);
-    
-    // Rute untuk Scan
-    Route::post('/scans/confirm', [ScanController::class, 'confirmScan']);
+    Route::post('/exchange-coins', [EcopayController::class, 'exchangeCoins']);
 
-    // === RUTE BARU UNTUK PERMINTAAN ISI SALDO DARI FLUTTER ===
-    Route::post('/topup-request', function (Request $request) {
-        $validated = $request->validate(['amount' => 'required|integer|min:10000']);
-        
-        // Buat record baru di tabel topup_requests dengan status 'pending'
-        $request->user()->topupRequests()->create([
-            'amount' => $validated['amount'],
-            'status' => 'pending',
-        ]);
+    // === TOPUP ROUTES ===
+    Route::post('/topup-request', [EcopayController::class, 'createTopupRequest']);
+    Route::get('/topup-requests', [EcopayController::class, 'getTopupRequests']);
 
-        return response()->json(['message' => 'Permintaan top up Anda telah dikirim dan sedang diproses.']);
-    })->name('api.topup.request');
+    // === SCAN & HISTORY ROUTES ===
+    Route::post('/scan/confirm', [ScanController::class, 'confirmScan']);
+    Route::get('/history', [HistoryController::class, 'getScanHistory']);
+    Route::get('/history/stats', [HistoryController::class, 'getScanStats']);
 
+    // === LEGACY SUPPORT (untuk backward compatibility) ===
+    Route::post('/scans/confirm', [ScanController::class, 'confirmScan']); // old endpoint
+    Route::post('/coins/exchange', [EcopayController::class, 'exchangeCoins']); // old endpoint
+
+});
+
+// === FALLBACK ROUTES ===
+Route::fallback(function(){
+    return response()->json([
+        'message' => 'API endpoint not found. Please check the documentation.',
+        'available_endpoints' => [
+            'POST /api/login',
+            'POST /api/register',
+            'GET /api/user',
+            'GET /api/profile',
+            'GET /api/dropboxes',
+            'GET /api/wallet',
+            'GET /api/transactions',
+            'GET /api/history',
+            'POST /api/transfer',
+            'POST /api/exchange-coins',
+            'POST /api/scan/confirm',
+            'POST /api/topup-request'
+        ]
+    ], 404);
 });

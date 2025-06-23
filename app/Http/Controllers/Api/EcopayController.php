@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Api/EcopayController.php
+// app/Http/Controllers/Api/EcopayController.php - FIXED TRANSFER
 
 namespace App\Http\Controllers\Api;
 
@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Transaction;
+use App\Models\User;
 
 class EcopayController extends Controller
 {
@@ -36,8 +37,9 @@ class EcopayController extends Controller
                                  ->limit(50)
                                  ->get();
 
-        // Return as array directly for consistent parsing
-        return response()->json($transactions);
+        return response()->json([
+            'data' => $transactions
+        ]);
     }
 
     /**
@@ -46,11 +48,11 @@ class EcopayController extends Controller
     public function exchangeCoins(Request $request)
     {
         $validated = $request->validate([
-            'coins_to_exchange' => 'required|integer|min:1',
+            'coins' => 'required|integer|min:1',
         ]);
 
         $user = $request->user();
-        $coinsToExchange = $validated['coins_to_exchange'];
+        $coinsToExchange = $validated['coins'];
 
         // Cek apakah koin user mencukupi
         if ($user->balance_coins < $coinsToExchange) {
@@ -101,17 +103,19 @@ class EcopayController extends Controller
     }
 
     /**
-     * Transfer saldo
+     * Transfer saldo - FIXED VERSION
      */
     public function transfer(Request $request)
     {
         $validated = $request->validate([
-            'amount' => 'required|integer|min:100',
-            'destination' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'amount' => 'required|numeric|min:1000',
+            'description' => 'nullable|string|max:255',
         ]);
 
         $user = $request->user();
-        $amount = $validated['amount'];
+        $amount = (float) $validated['amount'];
+        $recipientEmail = $validated['email'];
 
         // Cek apakah saldo mencukupi
         if ($user->balance_rp < $amount) {
@@ -121,17 +125,45 @@ class EcopayController extends Controller
             ], 422);
         }
 
+        // Cari penerima berdasarkan email
+        $recipient = User::where('email', $recipientEmail)->first();
+        if (!$recipient) {
+            return response()->json([
+                'message' => 'Email penerima tidak terdaftar di sistem.',
+                'success' => false
+            ], 404);
+        }
+
+        // Tidak bisa transfer ke diri sendiri
+        if ($recipient->id === $user->id) {
+            return response()->json([
+                'message' => 'Anda tidak dapat transfer ke diri sendiri.',
+                'success' => false
+            ], 422);
+        }
+
         try {
-            DB::transaction(function () use ($user, $amount, $validated) {
-                // 1. Kurangi saldo Rupiah user
+            DB::transaction(function () use ($user, $recipient, $amount, $validated) {
+                // 1. Kurangi saldo pengirim
                 $user->decrement('balance_rp', $amount);
 
-                // 2. Catat transaksi
+                // 2. Tambah saldo penerima
+                $recipient->increment('balance_rp', $amount);
+
+                // 3. Catat transaksi untuk pengirim
                 Transaction::create([
                     'user_id' => $user->id,
                     'type' => 'transfer_out',
                     'amount_rp' => -$amount,
-                    'description' => "Transfer ke {$validated['destination']} - Rp " . number_format($amount, 0, ',', '.'),
+                    'description' => "Transfer ke {$recipient->name} ({$recipient->email}) - " . ($validated['description'] ?? ''),
+                ]);
+
+                // 4. Catat transaksi untuk penerima
+                Transaction::create([
+                    'user_id' => $recipient->id,
+                    'type' => 'transfer_in',
+                    'amount_rp' => $amount,
+                    'description' => "Transfer dari {$user->name} ({$user->email}) - " . ($validated['description'] ?? ''),
                 ]);
             });
 
@@ -140,8 +172,10 @@ class EcopayController extends Controller
                 'success' => true,
                 'data' => [
                     'amount_transferred' => $amount,
-                    'destination' => $validated['destination'],
+                    'recipient_name' => $recipient->name,
+                    'recipient_email' => $recipient->email,
                     'new_balance_rp' => $user->fresh()->balance_rp,
+                    'description' => $validated['description'] ?? '',
                 ]
             ]);
         } catch (\Exception $e) {
@@ -160,33 +194,90 @@ class EcopayController extends Controller
     {
         $user = $request->user();
 
-        // Total income (topup + rewards)
+        // Total income (topup + rewards + transfer in)
         $totalIncome = Transaction::where('user_id', $user->id)
-            ->whereIn('type', ['topup', 'manual_topup', 'scan_reward'])
-            ->where(function($query) {
-                $query->where('amount_rp', '>', 0)
-                      ->orWhere('amount_coins', '>', 0);
-            })
+            ->whereIn('type', ['topup', 'manual_topup', 'scan_reward', 'transfer_in'])
+            ->where('amount_rp', '>', 0)
             ->sum('amount_rp');
 
         // Total spending (transfers + exchanges)
-        $totalSpending = Transaction::where('user_id', $user->id)
+        $totalSpending = abs(Transaction::where('user_id', $user->id)
             ->whereIn('type', ['transfer_out', 'coin_exchange_to_rp'])
             ->where('amount_rp', '<', 0)
-            ->sum('amount_rp');
+            ->sum('amount_rp'));
 
         // Total coins earned
         $totalCoinsEarned = Transaction::where('user_id', $user->id)
             ->where('type', 'scan_reward')
+            ->where('amount_coins', '>', 0)
             ->sum('amount_coins');
 
         return response()->json([
             'current_balance_rp' => $user->balance_rp ?? 0,
             'current_balance_coins' => $user->balance_coins ?? 0,
-            'total_income' => abs($totalIncome),
-            'total_spending' => abs($totalSpending),
+            'total_income' => $totalIncome,
+            'total_spending' => $totalSpending,
             'total_coins_earned' => $totalCoinsEarned,
             'transaction_count' => Transaction::where('user_id', $user->id)->count(),
+        ]);
+    }
+
+    /**
+     * Create topup request
+     */
+    public function createTopupRequest(Request $request)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:10000|max:10000000',
+            'payment_method' => 'nullable|string|max:100',
+            'user_note' => 'nullable|string|max:500',
+        ]);
+
+        $user = $request->user();
+
+        try {
+            $topupRequest = \App\Models\TopupRequest::create([
+                'user_id' => $user->id,
+                'amount' => $validated['amount'],
+                'status' => 'pending',
+                'type' => 'request',
+                'payment_method' => $validated['payment_method'] ?? 'transfer_bank',
+                'user_note' => $validated['user_note'] ?? '',
+            ]);
+
+            return response()->json([
+                'message' => 'Permintaan top up berhasil dibuat. Silakan tunggu konfirmasi admin.',
+                'success' => true,
+                'data' => [
+                    'request_id' => $topupRequest->id,
+                    'amount' => $topupRequest->amount,
+                    'status' => $topupRequest->status,
+                    'created_at' => $topupRequest->created_at,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal membuat permintaan top up.',
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user topup requests
+     */
+    public function getTopupRequests(Request $request)
+    {
+        $user = $request->user();
+
+        $requests = \App\Models\TopupRequest::where('user_id', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(20)
+                    ->get();
+
+        return response()->json([
+            'data' => $requests
         ]);
     }
 }
