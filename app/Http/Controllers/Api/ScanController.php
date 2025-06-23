@@ -1,6 +1,6 @@
 <?php
+// app/Http/Controllers/Api/ScanController.php
 
-// app/Http/Controllers/Api/ScanController.php - PERBAIKAN LENGKAP
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -18,7 +18,7 @@ class ScanController extends Controller
         $validated = $request->validate([
             'dropbox_code' => 'required|string',
             'waste_type' => 'required|string|in:plastic,paper,metal,glass,organic',
-            'weight' => 'required|numeric|min:0.1|max:100', // Berat antara 0.1 - 100kg
+            'weight' => 'required|numeric|min:0.1|max:100',
         ]);
 
         $user = $request->user();
@@ -33,21 +33,22 @@ class ScanController extends Controller
             ], 404);
         }
 
-        // Logika Poin berdasarkan jenis sampah dan berat
+        // Logika Poin berdasarkan jenis sampah dan berat (dalam gram)
         $pointsPerGram = $this->getPointsPerGram($validated['waste_type']);
-        $coins_awarded = (int)floor($validated['weight'] * 1000 * $pointsPerGram); // Convert kg to gram
+        $weightInGrams = $validated['weight'] * 1000; // Convert kg to gram
+        $coins_awarded = (int)floor($weightInGrams * $pointsPerGram);
 
         try {
-            DB::transaction(function () use ($user, $dropbox, $validated, $coins_awarded) {
+            DB::transaction(function () use ($user, $dropbox, $validated, $coins_awarded, $weightInGrams) {
                 // 1. Tambah koin ke user
                 $user->increment('balance_coins', $coins_awarded);
 
-                // 2. Catat ke history
+                // 2. Catat ke history dengan data lebih lengkap
                 History::create([
                     'user_id' => $user->id,
                     'dropbox_id' => $dropbox->id,
                     'waste_type' => $validated['waste_type'],
-                    'weight' => $validated['weight'],
+                    'weight' => $validated['weight'], // dalam kg
                     'coins_earned' => $coins_awarded,
                     'status' => 'success',
                     'scan_time' => now(),
@@ -58,7 +59,7 @@ class ScanController extends Controller
                     'user_id' => $user->id,
                     'type' => 'scan_reward',
                     'amount_coins' => $coins_awarded,
-                    'description' => "Scan sampah {$validated['waste_type']} seberat {$validated['weight']}kg",
+                    'description' => "Scan sampah {$validated['waste_type']} seberat {$validated['weight']}kg - Reward {$coins_awarded} koin",
                 ]);
             });
 
@@ -69,6 +70,7 @@ class ScanController extends Controller
                     'coins_earned' => $coins_awarded,
                     'waste_type' => $validated['waste_type'],
                     'weight' => $validated['weight'],
+                    'weight_grams' => $weightInGrams,
                     'new_balance_coins' => $user->fresh()->balance_coins,
                     'dropbox_location' => $dropbox->location_name,
                 ]
@@ -88,7 +90,7 @@ class ScanController extends Controller
                     'error_message' => $e->getMessage(),
                 ]);
             } catch (\Exception $historyError) {
-                // Log history error jika perlu
+                \Log::error('Failed to save scan history: ' . $historyError->getMessage());
             }
 
             return response()->json([
@@ -130,6 +132,23 @@ class ScanController extends Controller
         $totalCoinsEarned = History::where('user_id', $user->id)->sum('coins_earned');
         $totalWasteWeight = History::where('user_id', $user->id)->sum('weight');
 
+        // Statistik per jenis sampah
+        $wasteTypeStats = History::where('user_id', $user->id)
+            ->where('status', 'success')
+            ->selectRaw('waste_type, COUNT(*) as count, SUM(weight) as total_weight, SUM(coins_earned) as total_coins')
+            ->groupBy('waste_type')
+            ->get();
+
+        // Statistik bulanan (6 bulan terakhir)
+        $monthlyStats = History::where('user_id', $user->id)
+            ->where('status', 'success')
+            ->where('created_at', '>=', now()->subMonths(6))
+            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as scans, SUM(coins_earned) as coins')
+            ->groupBy('year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->get();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -138,6 +157,8 @@ class ScanController extends Controller
                 'total_coins_earned' => $totalCoinsEarned,
                 'total_waste_weight' => round($totalWasteWeight, 2),
                 'success_rate' => $totalScans > 0 ? round(($successfulScans / $totalScans) * 100, 1) : 0,
+                'waste_type_breakdown' => $wasteTypeStats,
+                'monthly_stats' => $monthlyStats,
             ]
         ]);
     }
@@ -148,7 +169,7 @@ class ScanController extends Controller
     private function getPointsPerGram($wasteType)
     {
         $pointsMap = [
-            'plastic' => 0.01,  // 10 koin per kg
+            'plastic' => 0.01,  // 10 koin per kg (0.01 per gram)
             'paper' => 0.008,   // 8 koin per kg
             'metal' => 0.015,   // 15 koin per kg
             'glass' => 0.012,   // 12 koin per kg

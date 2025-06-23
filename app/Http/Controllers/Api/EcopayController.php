@@ -1,5 +1,8 @@
 <?php
+// app/Http/Controllers/Api/EcopayController.php
+
 namespace App\Http\Controllers\Api;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -7,9 +10,39 @@ use App\Models\Transaction;
 
 class EcopayController extends Controller
 {
-    // ... method getWallet dan getTransactions yang sudah ada ...
+    /**
+     * Get user wallet information
+     */
+    public function getWallet(Request $request)
+    {
+        $user = $request->user();
 
-    // METHOD BARU UNTUK TUKAR KOIN
+        return response()->json([
+            'balance_rp' => $user->balance_rp ?? 0,
+            'balance_coins' => $user->balance_coins ?? 0,
+            'formatted_balance_rp' => 'Rp ' . number_format($user->balance_rp ?? 0, 0, ',', '.'),
+        ]);
+    }
+
+    /**
+     * Get user transaction history
+     */
+    public function getTransactions(Request $request)
+    {
+        $user = $request->user();
+
+        $transactions = Transaction::where('user_id', $user->id)
+                                 ->orderBy('created_at', 'desc')
+                                 ->limit(50)
+                                 ->get();
+
+        // Return as array directly for consistent parsing
+        return response()->json($transactions);
+    }
+
+    /**
+     * Exchange coins to Rupiah
+     */
     public function exchangeCoins(Request $request)
     {
         $validated = $request->validate([
@@ -21,7 +54,10 @@ class EcopayController extends Controller
 
         // Cek apakah koin user mencukupi
         if ($user->balance_coins < $coinsToExchange) {
-            return response()->json(['message' => 'Koin Anda tidak mencukupi.'], 422); // Unprocessable Entity
+            return response()->json([
+                'message' => 'Koin Anda tidak mencukupi.',
+                'success' => false
+            ], 422);
         }
 
         // Perhitungan: 1 koin = 100 Rupiah
@@ -40,81 +76,117 @@ class EcopayController extends Controller
                     'user_id' => $user->id,
                     'type' => 'coin_exchange_to_rp',
                     'amount_rp' => $rpAmount,
-                    'amount_coins' => -$coinsToExchange, // Diberi tanda minus karena koin berkurang
+                    'amount_coins' => -$coinsToExchange,
                     'description' => "$coinsToExchange koin ditukar menjadi Rp. " . number_format($rpAmount, 0, ',', '.'),
                 ]);
             });
+
+            return response()->json([
+                'message' => 'Koin berhasil ditukarkan!',
+                'success' => true,
+                'data' => [
+                    'coins_exchanged' => $coinsToExchange,
+                    'rupiah_received' => $rpAmount,
+                    'new_balance_rp' => $user->fresh()->balance_rp,
+                    'new_balance_coins' => $user->fresh()->balance_coins,
+                ]
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Gagal menukar koin, silakan coba lagi.', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Gagal menukar koin, silakan coba lagi.',
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Transfer saldo
+     */
+    public function transfer(Request $request)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|integer|min:100',
+            'destination' => 'required|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $amount = $validated['amount'];
+
+        // Cek apakah saldo mencukupi
+        if ($user->balance_rp < $amount) {
+            return response()->json([
+                'message' => 'Saldo Anda tidak mencukupi.',
+                'success' => false
+            ], 422);
         }
 
-        return response()->json(['message' => 'Koin berhasil ditukarkan!']);
-    }
+        try {
+            DB::transaction(function () use ($user, $amount, $validated) {
+                // 1. Kurangi saldo Rupiah user
+                $user->decrement('balance_rp', $amount);
 
-    // ... di dalam class EcopayController ...
-// ... setelah method exchangeCoins ...
+                // 2. Catat transaksi
+                Transaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'transfer_out',
+                    'amount_rp' => -$amount,
+                    'description' => "Transfer ke {$validated['destination']} - Rp " . number_format($amount, 0, ',', '.'),
+                ]);
+            });
 
-public function topup(Request $request)
-{
-    $validated = $request->validate([
-        'amount' => 'required|integer|min:1000', // Minimal top-up 1000
-    ]);
-
-    $user = $request->user();
-    $amount = $validated['amount'];
-
-    try {
-        DB::transaction(function () use ($user, $amount) {
-            // 1. Tambah saldo Rupiah user
-            $user->increment('balance_rp', $amount);
-
-            // 2. Catat transaksi
-            Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'topup',
-                'amount_rp' => $amount,
-                'description' => "Top up saldo sebesar Rp. " . number_format($amount, 0, ',', '.'),
+            return response()->json([
+                'message' => 'Transfer berhasil!',
+                'success' => true,
+                'data' => [
+                    'amount_transferred' => $amount,
+                    'destination' => $validated['destination'],
+                    'new_balance_rp' => $user->fresh()->balance_rp,
+                ]
             ]);
-        });
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Gagal top up saldo.', 'error' => $e->getMessage()], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal melakukan transfer.',
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    return response()->json(['message' => 'Top up berhasil!']);
-}
-    // ... setelah method topup ...
-public function transfer(Request $request)
-{
-    $validated = $request->validate([
-        'amount' => 'required|integer|min:100', // Minimal transfer 100
-        'destination' => 'required|string', // Untuk simulasi, kita hanya terima string
-    ]);
+    /**
+     * Get user balance summary
+     */
+    public function getBalanceSummary(Request $request)
+    {
+        $user = $request->user();
 
-    $user = $request->user();
-    $amount = $validated['amount'];
+        // Total income (topup + rewards)
+        $totalIncome = Transaction::where('user_id', $user->id)
+            ->whereIn('type', ['topup', 'manual_topup', 'scan_reward'])
+            ->where(function($query) {
+                $query->where('amount_rp', '>', 0)
+                      ->orWhere('amount_coins', '>', 0);
+            })
+            ->sum('amount_rp');
 
-    // Cek apakah saldo mencukupi
-    if ($user->balance_rp < $amount) {
-        return response()->json(['message' => 'Saldo Anda tidak mencukupi.'], 422);
+        // Total spending (transfers + exchanges)
+        $totalSpending = Transaction::where('user_id', $user->id)
+            ->whereIn('type', ['transfer_out', 'coin_exchange_to_rp'])
+            ->where('amount_rp', '<', 0)
+            ->sum('amount_rp');
+
+        // Total coins earned
+        $totalCoinsEarned = Transaction::where('user_id', $user->id)
+            ->where('type', 'scan_reward')
+            ->sum('amount_coins');
+
+        return response()->json([
+            'current_balance_rp' => $user->balance_rp ?? 0,
+            'current_balance_coins' => $user->balance_coins ?? 0,
+            'total_income' => abs($totalIncome),
+            'total_spending' => abs($totalSpending),
+            'total_coins_earned' => $totalCoinsEarned,
+            'transaction_count' => Transaction::where('user_id', $user->id)->count(),
+        ]);
     }
-
-    try {
-        DB::transaction(function () use ($user, $amount, $validated) {
-            // 1. Kurangi saldo Rupiah user
-            $user->decrement('balance_rp', $amount);
-
-            // 2. Catat transaksi
-            Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'transfer_out',
-                'amount_rp' => -$amount, // Diberi tanda minus karena saldo berkurang
-                'description' => "Transfer ke {$validated['destination']}",
-            ]);
-        });
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Gagal melakukan transfer.', 'error' => $e->getMessage()], 500);
-    }
-
-    return response()->json(['message' => 'Transfer berhasil!']);
-}
 }
