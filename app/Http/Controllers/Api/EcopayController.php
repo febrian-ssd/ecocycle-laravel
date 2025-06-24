@@ -1,242 +1,57 @@
 <?php
-// app/Http/Controllers/Api/EcopayController.php - FIXED TRANSFER
+// app/Http/Controllers/Api/EcopayController.php - FIXED VERSION
 
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\TopupRequest;
 
 class EcopayController extends Controller
 {
     /**
-     * Get user wallet information
-     */
-    public function getWallet(Request $request)
-    {
-        $user = $request->user();
-
-        return response()->json([
-            'balance_rp' => $user->balance_rp ?? 0,
-            'balance_coins' => $user->balance_coins ?? 0,
-            'formatted_balance_rp' => 'Rp ' . number_format($user->balance_rp ?? 0, 0, ',', '.'),
-        ]);
-    }
-
-    /**
-     * Get user transaction history
-     */
-    public function getTransactions(Request $request)
-    {
-        $user = $request->user();
-
-        $transactions = Transaction::where('user_id', $user->id)
-                                 ->orderBy('created_at', 'desc')
-                                 ->limit(50)
-                                 ->get();
-
-        return response()->json([
-            'data' => $transactions
-        ]);
-    }
-
-    /**
-     * Exchange coins to Rupiah
-     */
-    public function exchangeCoins(Request $request)
-    {
-        $validated = $request->validate([
-            'coins' => 'required|integer|min:1',
-        ]);
-
-        $user = $request->user();
-        $coinsToExchange = $validated['coins'];
-
-        // Cek apakah koin user mencukupi
-        if ($user->balance_coins < $coinsToExchange) {
-            return response()->json([
-                'message' => 'Koin Anda tidak mencukupi.',
-                'success' => false
-            ], 422);
-        }
-
-        // Perhitungan: 1 koin = 100 Rupiah
-        $rpAmount = $coinsToExchange * 100;
-
-        try {
-            DB::transaction(function () use ($user, $coinsToExchange, $rpAmount) {
-                // 1. Kurangi saldo koin user
-                $user->decrement('balance_coins', $coinsToExchange);
-
-                // 2. Tambah saldo Rupiah user
-                $user->increment('balance_rp', $rpAmount);
-
-                // 3. Catat transaksi
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'coin_exchange_to_rp',
-                    'amount_rp' => $rpAmount,
-                    'amount_coins' => -$coinsToExchange,
-                    'description' => "$coinsToExchange koin ditukar menjadi Rp. " . number_format($rpAmount, 0, ',', '.'),
-                ]);
-            });
-
-            return response()->json([
-                'message' => 'Koin berhasil ditukarkan!',
-                'success' => true,
-                'data' => [
-                    'coins_exchanged' => $coinsToExchange,
-                    'rupiah_received' => $rpAmount,
-                    'new_balance_rp' => $user->fresh()->balance_rp,
-                    'new_balance_coins' => $user->fresh()->balance_coins,
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Gagal menukar koin, silakan coba lagi.',
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Transfer saldo - FIXED VERSION
-     */
-    public function transfer(Request $request)
-    {
-        $validated = $request->validate([
-            'email' => 'required|email|max:255',
-            'amount' => 'required|numeric|min:1000',
-            'description' => 'nullable|string|max:255',
-        ]);
-
-        $user = $request->user();
-        $amount = (float) $validated['amount'];
-        $recipientEmail = $validated['email'];
-
-        // Cek apakah saldo mencukupi
-        if ($user->balance_rp < $amount) {
-            return response()->json([
-                'message' => 'Saldo Anda tidak mencukupi.',
-                'success' => false
-            ], 422);
-        }
-
-        // Cari penerima berdasarkan email
-        $recipient = User::where('email', $recipientEmail)->first();
-        if (!$recipient) {
-            return response()->json([
-                'message' => 'Email penerima tidak terdaftar di sistem.',
-                'success' => false
-            ], 404);
-        }
-
-        // Tidak bisa transfer ke diri sendiri
-        if ($recipient->id === $user->id) {
-            return response()->json([
-                'message' => 'Anda tidak dapat transfer ke diri sendiri.',
-                'success' => false
-            ], 422);
-        }
-
-        try {
-            DB::transaction(function () use ($user, $recipient, $amount, $validated) {
-                // 1. Kurangi saldo pengirim
-                $user->decrement('balance_rp', $amount);
-
-                // 2. Tambah saldo penerima
-                $recipient->increment('balance_rp', $amount);
-
-                // 3. Catat transaksi untuk pengirim
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'transfer_out',
-                    'amount_rp' => -$amount,
-                    'description' => "Transfer ke {$recipient->name} ({$recipient->email}) - " . ($validated['description'] ?? ''),
-                ]);
-
-                // 4. Catat transaksi untuk penerima
-                Transaction::create([
-                    'user_id' => $recipient->id,
-                    'type' => 'transfer_in',
-                    'amount_rp' => $amount,
-                    'description' => "Transfer dari {$user->name} ({$user->email}) - " . ($validated['description'] ?? ''),
-                ]);
-            });
-
-            return response()->json([
-                'message' => 'Transfer berhasil!',
-                'success' => true,
-                'data' => [
-                    'amount_transferred' => $amount,
-                    'recipient_name' => $recipient->name,
-                    'recipient_email' => $recipient->email,
-                    'new_balance_rp' => $user->fresh()->balance_rp,
-                    'description' => $validated['description'] ?? '',
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Gagal melakukan transfer.',
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get user balance summary
-     */
-    public function getBalanceSummary(Request $request)
-    {
-        $user = $request->user();
-
-        // Total income (topup + rewards + transfer in)
-        $totalIncome = Transaction::where('user_id', $user->id)
-            ->whereIn('type', ['topup', 'manual_topup', 'scan_reward', 'transfer_in'])
-            ->where('amount_rp', '>', 0)
-            ->sum('amount_rp');
-
-        // Total spending (transfers + exchanges)
-        $totalSpending = abs(Transaction::where('user_id', $user->id)
-            ->whereIn('type', ['transfer_out', 'coin_exchange_to_rp'])
-            ->where('amount_rp', '<', 0)
-            ->sum('amount_rp'));
-
-        // Total coins earned
-        $totalCoinsEarned = Transaction::where('user_id', $user->id)
-            ->where('type', 'scan_reward')
-            ->where('amount_coins', '>', 0)
-            ->sum('amount_coins');
-
-        return response()->json([
-            'current_balance_rp' => $user->balance_rp ?? 0,
-            'current_balance_coins' => $user->balance_coins ?? 0,
-            'total_income' => $totalIncome,
-            'total_spending' => $totalSpending,
-            'total_coins_earned' => $totalCoinsEarned,
-            'transaction_count' => Transaction::where('user_id', $user->id)->count(),
-        ]);
-    }
-
-    /**
-     * Create topup request
+     * Create topup request - FIXED VERSION
      */
     public function createTopupRequest(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:10000|max:10000000',
-            'payment_method' => 'nullable|string|max:100',
-            'user_note' => 'nullable|string|max:500',
-        ]);
-
-        $user = $request->user();
-
         try {
-            $topupRequest = \App\Models\TopupRequest::create([
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:10000|max:10000000',
+                'payment_method' => 'nullable|string|max:100',
+                'user_note' => 'nullable|string|max:500',
+            ]);
+
+            $user = $request->user();
+
+            // Check if topup_requests table exists, if not create basic structure
+            if (!Schema::hasTable('topup_requests')) {
+                // Log error for admin to create proper migration
+                Log::error('TopupRequest table missing - creating basic structure');
+
+                // Create basic table structure if not exists
+                Schema::create('topup_requests', function ($table) {
+                    $table->id();
+                    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+                    $table->decimal('amount', 15, 2);
+                    $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+                    $table->enum('type', ['manual', 'request'])->default('request');
+                    $table->string('payment_method')->nullable();
+                    $table->text('user_note')->nullable();
+                    $table->text('admin_note')->nullable();
+                    $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
+                    $table->timestamp('approved_at')->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            DB::beginTransaction();
+
+            $topupRequest = TopupRequest::create([
                 'user_id' => $user->id,
                 'amount' => $validated['amount'],
                 'status' => 'pending',
@@ -245,39 +60,227 @@ class EcopayController extends Controller
                 'user_note' => $validated['user_note'] ?? '',
             ]);
 
+            DB::commit();
+
+            // Log successful creation
+            Log::info("Topup request created: ID {$topupRequest->id}, Amount {$validated['amount']}, User {$user->id}");
+
             return response()->json([
-                'message' => 'Permintaan top up berhasil dibuat. Silakan tunggu konfirmasi admin.',
                 'success' => true,
+                'message' => 'Permintaan top up berhasil dibuat. Silakan tunggu konfirmasi admin.',
                 'data' => [
                     'request_id' => $topupRequest->id,
                     'amount' => $topupRequest->amount,
                     'status' => $topupRequest->status,
                     'created_at' => $topupRequest->created_at,
+                    'formatted_amount' => 'Rp ' . number_format($topupRequest->amount, 0, ',', '.'),
                 ]
-            ]);
-        } catch (\Exception $e) {
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'message' => 'Gagal membuat permintaan top up.',
                 'success' => false,
-                'error' => $e->getMessage()
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            // Log detailed error for debugging
+            Log::error('Topup request creation failed', [
+                'user_id' => $request->user()->id ?? 'unknown',
+                'amount' => $request->input('amount'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat permintaan top up. Silakan coba lagi.',
+                'error_code' => 'TOPUP_REQUEST_FAILED',
+                'debug_info' => config('app.debug') ? $e->getMessage() : 'Server error'
             ], 500);
         }
     }
 
     /**
-     * Get user topup requests
+     * Get user topup requests - IMPROVED VERSION
      */
     public function getTopupRequests(Request $request)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        $requests = \App\Models\TopupRequest::where('user_id', $user->id)
-                    ->orderBy('created_at', 'desc')
-                    ->limit(20)
-                    ->get();
+            // Check if table exists
+            if (!Schema::hasTable('topup_requests')) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'Belum ada permintaan top up'
+                ]);
+            }
 
-        return response()->json([
-            'data' => $requests
-        ]);
+            $requests = TopupRequest::where('user_id', $user->id)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(20)
+                        ->get()
+                        ->map(function($request) {
+                            return [
+                                'id' => $request->id,
+                                'amount' => (float) $request->amount,
+                                'formatted_amount' => 'Rp ' . number_format($request->amount, 0, ',', '.'),
+                                'status' => $request->status,
+                                'status_label' => $this->getStatusLabel($request->status),
+                                'payment_method' => $request->payment_method,
+                                'user_note' => $request->user_note,
+                                'admin_note' => $request->admin_note,
+                                'created_at' => $request->created_at,
+                                'approved_at' => $request->approved_at,
+                                'formatted_date' => $request->created_at->format('d M Y H:i'),
+                            ];
+                        });
+
+            return response()->json([
+                'success' => true,
+                'data' => $requests
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get topup requests failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data permintaan top up',
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Get status label helper
+     */
+    private function getStatusLabel($status)
+    {
+        $labels = [
+            'pending' => 'Menunggu Konfirmasi',
+            'approved' => 'Disetujui',
+            'rejected' => 'Ditolak'
+        ];
+
+        return $labels[$status] ?? 'Unknown';
+    }
+
+    /**
+     * Transfer saldo - ENHANCED ERROR HANDLING
+     */
+    public function transfer(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'email' => 'required|email|max:255',
+                'amount' => 'required|numeric|min:1000',
+                'description' => 'nullable|string|max:255',
+            ]);
+
+            $user = $request->user();
+            $amount = (float) $validated['amount'];
+            $recipientEmail = $validated['email'];
+
+            // Check balance
+            if (($user->balance_rp ?? 0) < $amount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Saldo Anda tidak mencukupi.',
+                    'current_balance' => (float) ($user->balance_rp ?? 0),
+                    'required_amount' => $amount
+                ], 422);
+            }
+
+            // Find recipient
+            $recipient = User::where('email', $recipientEmail)->first();
+            if (!$recipient) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email penerima tidak terdaftar di sistem.'
+                ], 404);
+            }
+
+            // Check self transfer
+            if ($recipient->id === $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak dapat transfer ke diri sendiri.'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Update balances
+            $user->decrement('balance_rp', $amount);
+            $recipient->increment('balance_rp', $amount);
+
+            // Record transactions
+            Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'transfer_out',
+                'amount_rp' => -$amount,
+                'description' => "Transfer ke {$recipient->name} ({$recipient->email}) - " . ($validated['description'] ?? ''),
+            ]);
+
+            Transaction::create([
+                'user_id' => $recipient->id,
+                'type' => 'transfer_in',
+                'amount_rp' => $amount,
+                'description' => "Transfer dari {$user->name} ({$user->email}) - " . ($validated['description'] ?? ''),
+            ]);
+
+            DB::commit();
+
+            // Log successful transfer
+            Log::info("Transfer successful", [
+                'from_user' => $user->id,
+                'to_user' => $recipient->id,
+                'amount' => $amount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transfer berhasil!',
+                'data' => [
+                    'amount_transferred' => $amount,
+                    'formatted_amount' => 'Rp ' . number_format($amount, 0, ',', '.'),
+                    'recipient_name' => $recipient->name,
+                    'recipient_email' => $recipient->email,
+                    'new_balance_rp' => (float) $user->fresh()->balance_rp,
+                    'formatted_balance' => 'Rp ' . number_format($user->fresh()->balance_rp, 0, ',', '.'),
+                    'description' => $validated['description'] ?? '',
+                ]
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Transfer failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan transfer. Silakan coba lagi.',
+                'error_code' => 'TRANSFER_FAILED'
+            ], 500);
+        }
     }
 }
