@@ -25,21 +25,21 @@ class AdminController extends Controller
     // Placeholder untuk fungsi lain yang mungkin Anda butuhkan
     public function getUsers(Request $request)
     {
-         return response()->json(['success' => true, 'data' => []]);
+        return response()->json(['success' => true, 'data' => []]);
     }
 
     public function getDropboxes(Request $request)
     {
-         return response()->json(['success' => true, 'data' => []]);
+        return response()->json(['success' => true, 'data' => []]);
     }
 
     public function getTopupRequests(Request $request)
     {
-         return response()->json(['success' => true, 'data' => []]);
+        return response()->json(['success' => true, 'data' => []]);
     }
 
     public function getAllTransactions(Request $request)
     {
-         return response()->json(['success' => true, 'data' => []]);
+        return response()->json(['success' => true, 'data' => []]);
     }
 }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -34,7 +35,8 @@
             box-sizing: border-box;
         }
 
-        body, html {
+        body,
+        html {
             font-family: 'Nunito', sans-serif;
             background-color: #f8f9fa;
             height: 100%;
@@ -64,7 +66,7 @@
             background: linear-gradient(135deg, #004d00 0%, #006600 100%);
             color: white;
             height: 70px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -108,7 +110,7 @@
         }
 
         .header .menu-toggle:hover {
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255, 255, 255, 0.1);
         }
 
         .header .user-info {
@@ -128,12 +130,12 @@
             font-weight: 600;
             font-size: 14px;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(255,140,0,0.3);
+            box-shadow: 0 2px 5px rgba(255, 140, 0, 0.3);
         }
 
         .header .login-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(255,140,0,0.4);
+            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.4);
         }
 
         /* ===== SIDEBAR STYLES ===== */
@@ -147,7 +149,7 @@
             padding-top: 80px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1002;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
         }
 
         .sidebar.active {
@@ -166,8 +168,9 @@
             border-left: 3px solid transparent;
         }
 
-        .sidebar a:hover, .sidebar a.active {
-            background-color: rgba(255,255,255,0.1);
+        .sidebar a:hover,
+        .sidebar a.active {
+            background-color: rgba(255, 255, 255, 0.1);
             color: #ffc107;
             border-left-color: #ffc107;
             transform: translateX(5px);
@@ -198,7 +201,7 @@
         .sidebar .logout-btn:hover {
             background: linear-gradient(135deg, #ff6b00 0%, #ff5500 100%);
             transform: translateY(-2px) !important;
-            box-shadow: 0 4px 10px rgba(255,140,0,0.4);
+            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.4);
         }
 
         /* ===== MAIN CONTENT ===== */
@@ -250,7 +253,7 @@
             border: none;
             padding: 12px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             cursor: pointer;
             transition: all 0.3s ease;
             color: #004d00;
@@ -284,8 +287,13 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .popup-container {
@@ -297,13 +305,20 @@
             width: 90%;
             max-width: 450px;
             position: relative;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.3s ease;
         }
 
         @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .popup-container .close-btn {
@@ -364,7 +379,7 @@
 
         .popup-container .form-control:focus {
             border-color: #004d00;
-            box-shadow: 0 0 0 3px rgba(0,77,0,0.1);
+            box-shadow: 0 0 0 3px rgba(0, 77, 0, 0.1);
             outline: none;
         }
 
@@ -379,12 +394,12 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,77,0,0.3);
+            box-shadow: 0 4px 15px rgba(0, 77, 0, 0.3);
         }
 
         .popup-container .btn-submit:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,77,0,0.4);
+            box-shadow: 0 6px 20px rgba(0, 77, 0, 0.4);
         }
 
         .popup-container .auth-link {
@@ -448,8 +463,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         /* ===== ALERT STYLES ===== */
@@ -473,6 +493,7 @@
 
     @yield('styles')
 </head>
+
 <body>
     <div id="app">
         <div class="page-container">
@@ -481,23 +502,27 @@
                     <a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? 'active' : '' }}">
                         <i class="fas fa-map-marked-alt"></i> Lihat Peta
                     </a>
-                    @if(Auth::user()->is_admin)
-                        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                    @if(Auth::user()->isAdmin())
+                        <a href="{{ route('admin.users.index') }}"
+                            class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                             <i class="fas fa-users"></i> Data User
                         </a>
-                        <a href="{{ route('admin.dropboxes.index') }}" class="{{ request()->routeIs('admin.dropboxes.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.dropboxes.index') }}"
+                            class="{{ request()->routeIs('admin.dropboxes.*') ? 'active' : '' }}">
                             <i class="fas fa-trash-alt"></i> Data Dropbox
                         </a>
-                        <a href="{{ route('admin.history.index') }}" class="{{ request()->routeIs('admin.history.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.history.index') }}"
+                            class="{{ request()->routeIs('admin.history.*') ? 'active' : '' }}">
                             <i class="fas fa-history"></i> Riwayat Scan User
                         </a>
-                        <a href="{{ route('admin.saldo.topup.index') }}" class="{{ request()->routeIs('admin.saldo.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.saldo.topup.index') }}"
+                            class="{{ request()->routeIs('admin.saldo.*') ? 'active' : '' }}">
                             <i class="fas fa-wallet"></i> Saldo User
                         </a>
                     @endif
 
                     <a class="logout-btn" href="{{ route('logout') }}"
-                       onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
+                        onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                     <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
@@ -510,7 +535,7 @@
                 <header class="header" id="header">
                     <div class="header-left">
                         @auth
-                            @if(Auth::user()->is_admin)
+                            @if(Auth::user()->isAdmin())
                                 <span class="menu-toggle" id="menu-toggle">
                                     <i class="fas fa-bars"></i>
                                 </span>
@@ -518,7 +543,7 @@
                         @endauth
                         <a href="{{ route('home') }}" class="logo">
                             <img src="{{ asset('images/logo.png') }}" alt="EcoCycle Logo"
-                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmZmM3MDciLz4KPHBhdGggZD0iTTEwIDIwQzEwIDI1LjUgMTQuNSAzMCAyMCAzMEMyNS41IDMwIDMwIDI1LjUgMzAgMjBDMzAgMTQuNSAyNS41IDEwIDIwIDEwQzE0LjUgMTAgMTAgMTQuNSAxMCAyMFoiIGZpbGw9IiMwMDRkMDAiLz4KPHN2Zz4K'">
+                                onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmZmM3MDciLz4KPHBhdGggZD0iTTEwIDIwQzEwIDI1LjUgMTQuNSAzMCAyMCAzMEMyNS41IDMwIDMwIDI1LjUgMzAgMjBDMzAgMTQuNSAyNS41IDEwIDIwIDEwQzE0LjUgMTAgMTAgMTQuNSAxMCAyMFoiIGZpbGw9IiMwMDRkMDAiLz4KPHN2Zz4K'">
                             <span>EcoCycle</span>
                         </a>
                     </div>
@@ -565,19 +590,18 @@
             <div class="popup-container">
                 <span class="close-btn" data-close-popup>&times;</span>
                 <img src="{{ asset('images/logo.png') }}" alt="Logo" class="popup-logo"
-                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCA3MCA3MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzUiIGN5PSIzNSIgcj0iMzUiIGZpbGw9IiNmZmM3MDciLz4KPHN2Zz4K'">
+                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCA3MCA3MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzUiIGN5PSIzNSIgcj0iMzUiIGZpbGw9IiNmZmM3MDciLz4KPHN2Zz4K'">
                 <h3>Selamat Datang!</h3>
                 <form method="POST" action="{{ route('login') }}">
                     @csrf
                     <div class="input-wrapper">
                         <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" name="email" class="form-control" required
-                               placeholder="Email" value="{{ old('email') }}">
+                        <input type="email" name="email" class="form-control" required placeholder="Email"
+                            value="{{ old('email') }}">
                     </div>
                     <div class="input-wrapper">
                         <i class="fas fa-lock input-icon"></i>
-                        <input type="password" name="password" class="form-control" required
-                               placeholder="Password">
+                        <input type="password" name="password" class="form-control" required placeholder="Password">
                     </div>
                     <button type="submit" class="btn-submit">
                         <span class="btn-text">Login</span>
@@ -595,29 +619,29 @@
             <div class="popup-container">
                 <span class="close-btn" data-close-popup>&times;</span>
                 <img src="{{ asset('images/logo.png') }}" alt="Logo" class="popup-logo"
-                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCA3MCA3MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzUiIGN5PSIzNSIgcj0iMzUiIGZpbGw9IiNmZmM3MDciLz4KPHN2Zz4K'">
+                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCA3MCA3MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzUiIGN5PSIzNSIgcj0iMzUiIGZpbGw9IiNmZmM3MDciLz4KPHN2Zz4K'">
                 <h3>Buat Akun Baru</h3>
                 <form method="POST" action="{{ route('register') }}">
                     @csrf
                     <div class="input-wrapper">
                         <i class="fas fa-user input-icon"></i>
-                        <input type="text" name="name" class="form-control" required
-                               placeholder="Nama Lengkap" value="{{ old('name') }}">
+                        <input type="text" name="name" class="form-control" required placeholder="Nama Lengkap"
+                            value="{{ old('name') }}">
                     </div>
                     <div class="input-wrapper">
                         <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" name="email" class="form-control" required
-                               placeholder="Email" value="{{ old('email') }}">
+                        <input type="email" name="email" class="form-control" required placeholder="Email"
+                            value="{{ old('email') }}">
                     </div>
                     <div class="input-wrapper">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" name="password" class="form-control" required
-                               placeholder="Password (min. 8 karakter)">
+                            placeholder="Password (min. 8 karakter)">
                     </div>
                     <div class="input-wrapper">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" name="password_confirmation" class="form-control" required
-                               placeholder="Konfirmasi Password">
+                            placeholder="Konfirmasi Password">
                     </div>
                     <button type="submit" class="btn-submit">
                         <span class="btn-text">Register</span>
@@ -713,7 +737,7 @@
 
             // Form submission loading states
             document.querySelectorAll('form').forEach(form => {
-                form.addEventListener('submit', function() {
+                form.addEventListener('submit', function () {
                     const submitBtn = this.querySelector('.btn-submit');
                     const btnText = submitBtn.querySelector('.btn-text');
                     const spinner = submitBtn.querySelector('.loading-spinner');
@@ -745,7 +769,7 @@
         });
 
         // Global Maps initialization function
-        window.initializeMap = function(containerId = 'map', options = {}) {
+        window.initializeMap = function (containerId = 'map', options = {}) {
             const defaultOptions = {
                 center: [-6.200000, 106.816666], // Jakarta coordinates
                 zoom: 13,
@@ -779,7 +803,7 @@
         };
 
         // Initialize Google Maps (alternative)
-        window.initializeGoogleMap = function(containerId = 'map', options = {}) {
+        window.initializeGoogleMap = function (containerId = 'map', options = {}) {
             const defaultOptions = {
                 center: { lat: -6.200000, lng: 106.816666 },
                 zoom: 13,
@@ -835,4 +859,5 @@
 
     @yield('scripts')
 </body>
+
 </html>
