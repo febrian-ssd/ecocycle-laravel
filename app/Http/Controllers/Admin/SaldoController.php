@@ -58,7 +58,8 @@ class SaldoController extends Controller
             $approvedRequests = 0;
             $totalRequests = 0;
             $totalAmount = 0;
-            $users = User::where('is_admin', false)->orderBy('name')->get();
+            // BARU
+            $users = User::where('role', 'user')->orderBy('name')->get();
 
             return view('admin.saldo.topup_index', compact(
                 'topupRequests',
@@ -80,14 +81,14 @@ class SaldoController extends Controller
             // Cek apakah tabel topup_requests ada
             if (!Schema::hasTable('topup_requests')) {
                 return redirect()->route('admin.saldo.topup.index')
-                               ->with('error', 'Tabel topup_requests belum ada. Silakan buat migration terlebih dahulu.');
+                    ->with('error', 'Tabel topup_requests belum ada. Silakan buat migration terlebih dahulu.');
             }
 
             $topupRequest = TopupRequest::findOrFail($id);
 
             if ($topupRequest->status !== 'pending') {
                 return redirect()->route('admin.saldo.topup.index')
-                               ->with('error', 'Permintaan top up sudah diproses sebelumnya!');
+                    ->with('error', 'Permintaan top up sudah diproses sebelumnya!');
             }
 
             DB::beginTransaction();
@@ -126,14 +127,14 @@ class SaldoController extends Controller
             DB::commit();
 
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('success', "Top up saldo sebesar Rp " . number_format($topupRequest->amount, 0, ',', '.') . " untuk {$user->name} berhasil disetujui!");
+                ->with('success', "Top up saldo sebesar Rp " . number_format($topupRequest->amount, 0, ',', '.') . " untuk {$user->name} berhasil disetujui!");
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error approving topup: ' . $e->getMessage());
 
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('error', 'Gagal menyetujui top up: ' . $e->getMessage());
+                ->with('error', 'Gagal menyetujui top up: ' . $e->getMessage());
         }
     }
 
@@ -150,14 +151,14 @@ class SaldoController extends Controller
             // Cek apakah tabel topup_requests ada
             if (!Schema::hasTable('topup_requests')) {
                 return redirect()->route('admin.saldo.topup.index')
-                               ->with('error', 'Tabel topup_requests belum ada. Silakan buat migration terlebih dahulu.');
+                    ->with('error', 'Tabel topup_requests belum ada. Silakan buat migration terlebih dahulu.');
             }
 
             $topupRequest = TopupRequest::findOrFail($id);
 
             if ($topupRequest->status !== 'pending') {
                 return redirect()->route('admin.saldo.topup.index')
-                               ->with('error', 'Permintaan top up sudah diproses sebelumnya!');
+                    ->with('error', 'Permintaan top up sudah diproses sebelumnya!');
             }
 
             DB::beginTransaction();
@@ -176,14 +177,14 @@ class SaldoController extends Controller
             DB::commit();
 
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('success', "Permintaan top up dari {$topupRequest->user->name} berhasil ditolak!");
+                ->with('success', "Permintaan top up dari {$topupRequest->user->name} berhasil ditolak!");
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error rejecting topup: ' . $e->getMessage());
 
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('error', 'Gagal menolak top up: ' . $e->getMessage());
+                ->with('error', 'Gagal menolak top up: ' . $e->getMessage());
         }
     }
 
@@ -239,14 +240,14 @@ class SaldoController extends Controller
             DB::commit();
 
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('success', "Top up manual sebesar Rp " . number_format($request->amount, 0, ',', '.') . " untuk {$user->name} berhasil!");
+                ->with('success', "Top up manual sebesar Rp " . number_format($request->amount, 0, ',', '.') . " untuk {$user->name} berhasil!");
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error in manual topup: ' . $e->getMessage());
 
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('error', 'Gagal melakukan top up manual: ' . $e->getMessage());
+                ->with('error', 'Gagal melakukan top up manual: ' . $e->getMessage());
         }
     }
 
@@ -292,7 +293,7 @@ class SaldoController extends Controller
         try {
             if (!Schema::hasTable('topup_requests')) {
                 return redirect()->route('admin.saldo.topup.index')
-                               ->with('error', 'Tabel topup_requests belum ada.');
+                    ->with('error', 'Tabel topup_requests belum ada.');
             }
 
             $topupRequest = TopupRequest::with(['user', 'approvedBy', 'rejectedBy'])->findOrFail($id);
@@ -300,7 +301,7 @@ class SaldoController extends Controller
         } catch (\Exception $e) {
             Log::error('Error showing topup detail: ' . $e->getMessage());
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('error', 'Data tidak ditemukan.');
+                ->with('error', 'Data tidak ditemukan.');
         }
     }
 
@@ -312,7 +313,7 @@ class SaldoController extends Controller
         try {
             if (!Schema::hasTable('topup_requests')) {
                 return redirect()->route('admin.saldo.topup.index')
-                               ->with('error', 'Tabel topup_requests belum ada.');
+                    ->with('error', 'Tabel topup_requests belum ada.');
             }
 
             $query = TopupRequest::with('user')->latest();
@@ -335,7 +336,7 @@ class SaldoController extends Controller
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ];
 
-            $callback = function() use ($topupRequests) {
+            $callback = function () use ($topupRequests) {
                 $file = fopen('php://output', 'w');
 
                 // CSV Headers
@@ -373,7 +374,7 @@ class SaldoController extends Controller
         } catch (\Exception $e) {
             Log::error('Error exporting data: ' . $e->getMessage());
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('error', 'Gagal mengexport data.');
+                ->with('error', 'Gagal mengexport data.');
         }
     }
 
@@ -395,7 +396,7 @@ class SaldoController extends Controller
         } catch (\Exception $e) {
             Log::error('Error getting user history: ' . $e->getMessage());
             return redirect()->route('admin.saldo.topup.index')
-                           ->with('error', 'Data user tidak ditemukan.');
+                ->with('error', 'Data user tidak ditemukan.');
         }
     }
 }
