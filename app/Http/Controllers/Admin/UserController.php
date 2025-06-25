@@ -15,7 +15,8 @@ class UserController extends Controller
         $users = User::orderBy('created_at', 'desc')->get();
 
         // Calculate statistics - PERBAIKAN: Gunakan kolom yang benar
-        $adminCount = User::where('is_admin', true)->count();
+       // BARU
+        $adminCount = User::where('role', 'admin')->count();
 
         // Count online users - gunakan updated_at sebagai indikator aktivitas terakhir
         $onlineUsers = User::where('updated_at', '>=', now()->subMinutes(5))->count();
@@ -39,7 +40,7 @@ class UserController extends Controller
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-            'is_admin' => ['required', 'boolean'],
+            'role' => ['required', 'string', 'in:admin,user'],
         ];
 
         // Only validate password if it's provided
@@ -53,7 +54,7 @@ class UserController extends Controller
             $updateData = [
                 'name' => $request->name,
                 'email' => $request->email,
-                'is_admin' => $request->boolean('is_admin'),
+                'role' => $request->role,
             ];
 
             // Only update password if provided

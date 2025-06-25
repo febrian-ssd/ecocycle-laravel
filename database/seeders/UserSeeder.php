@@ -22,7 +22,7 @@ class UserSeeder extends Seeder
             'name' => 'Admin EcoCycle',
             'email' => 'admin@ecocycle.com',
             'password' => Hash::make('password'), // passwordnya adalah 'password'
-            'is_admin' => true, // <-- INI PENENTU ADMIN
+            'role' => 'admin', // <-- INI PENENTU ADMIN
         ]);
 
         // Buat Akun User Biasa
@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
             'name' => 'User Biasa',
             'email' => 'user@ecocycle.com',
             'password' => Hash::make('password'), // passwordnya adalah 'password'
-            'is_admin' => false, // <-- INI PENENTU USER BIASA
+            'role' => 'user', // <-- INI PENENTU USER BIASA
         ]);
     }
 }
