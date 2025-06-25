@@ -17,7 +17,7 @@ class HistorySeeder extends Seeder
         History::truncate(); // Kosongkan tabel history lama
 
         // Ambil semua user (yang bukan admin) dan dropbox yang ada
-        $users = User::where('is_admin', false)->get();
+        $users = User::where('role', 'user')->get();
         $dropboxes = Dropbox::all();
 
         // Pastikan ada user dan dropbox untuk di-seed
