@@ -1,238 +1,280 @@
 <?php
+// app/Http/Controllers/Api/AuthController.php - Enhanced with Role Management
 
-// app/Http/Controllers/Api/AuthController.php - PERBAIKAN
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
 
 class AuthController extends Controller
 {
+    /**
+     * Register a new user
+     */
     public function register(Request $request)
     {
-        $validatedData = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string|min:6|confirmed',
+            'role' => 'sometimes|string|in:admin,user'
         ]);
 
-        $user = User::create([
-            'name' => $validatedData['name'],
-            'email' => $validatedData['email'],
-            'password' => Hash::make($validatedData['password']),
-            'is_admin' => false, // Default user bukan admin
-            'balance_rp' => 0, // Set default balance
-            'balance_coins' => 0, // Set default coins
-        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        // Buat token untuk user yang baru mendaftar
-        $token = $user->createToken('auth_token')->plainTextToken;
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => $request->role ?? User::ROLE_USER, // Default to user role
+                'balance_rp' => 0,
+                'balance_coins' => 0,
+                'is_active' => true,
+            ]);
 
-        // Kembalikan data user dan token dalam format JSON
-        return response()->json([
-            'message' => 'Registration successful',
-            'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-        ], 201);
+            // Create token with role information
+            $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registration successful',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'role_display' => $user->getRoleDisplayName(),
+                        'balance_rp' => $user->balance_rp,
+                        'balance_coins' => $user->balance_coins,
+                        'is_admin' => $user->isAdmin(),
+                        'is_user' => $user->isUser(),
+                    ],
+                    'access_token' => $token,
+                    'token_type' => 'Bearer',
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
+    /**
+     * Login user
+     */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($credentials)) {
-            throw ValidationException::withMessages([
-                'email' => ['These credentials do not match our records.'],
-            ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
+        try {
+            $credentials = $request->only('email', 'password');
 
-        return response()->json([
-            'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-        ]);
+            if (!Auth::attempt($credentials)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid credentials',
+                    'error_code' => 'INVALID_CREDENTIALS'
+                ], 401);
+            }
+
+            $user = Auth::user();
+
+            // Check if account is active
+            if (!$user->is_active) {
+                Auth::logout();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account has been deactivated. Please contact support.',
+                    'error_code' => 'ACCOUNT_DEACTIVATED'
+                ], 403);
+            }
+
+            // Create token with role-based abilities
+            $abilities = [$user->role];
+            if ($user->isAdmin()) {
+                $abilities[] = 'admin:access';
+                $abilities[] = 'user:manage';
+            } else {
+                $abilities[] = 'user:access';
+            }
+
+            $token = $user->createToken('auth_token', $abilities)->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'role_display' => $user->getRoleDisplayName(),
+                        'balance_rp' => $user->balance_rp,
+                        'balance_coins' => $user->balance_coins,
+                        'is_admin' => $user->isAdmin(),
+                        'is_user' => $user->isUser(),
+                    ],
+                    'access_token' => $token,
+                    'token_type' => 'Bearer',
+                    'abilities' => $abilities,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Login failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
+    /**
+     * Get authenticated user info
+     */
+    public function user(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'role_display' => $user->getRoleDisplayName(),
+                        'balance_rp' => $user->balance_rp,
+                        'balance_coins' => $user->balance_coins,
+                        'is_admin' => $user->isAdmin(),
+                        'is_user' => $user->isUser(),
+                        'is_active' => $user->is_active,
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get user data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Logout user
+     */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logout successful']);
-    }
-}
-
-// ======================================================================
-
-// app/Http/Controllers/Api/EcopayController.php - PERBAIKAN
-namespace App\Http\Controllers\Api;
-
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\Transaction;
-
-class EcopayController extends Controller
-{
-    /**
-     * Get user wallet information
-     */
-    public function getWallet(Request $request)
-    {
-        $user = $request->user();
-
-        return response()->json([
-            'balance_rp' => $user->balance_rp ?? 0,
-            'balance_coins' => $user->balance_coins ?? 0,
-            'formatted_balance_rp' => 'Rp ' . number_format($user->balance_rp ?? 0, 0, ',', '.'),
-        ]);
-    }
-
-    /**
-     * Get user transaction history
-     */
-    public function getTransactions(Request $request)
-    {
-        $user = $request->user();
-
-        $transactions = Transaction::where('user_id', $user->id)
-                                 ->orderBy('created_at', 'desc')
-                                 ->limit(50)
-                                 ->get();
-
-        return response()->json($transactions);
-    }
-
-    /**
-     * Exchange coins to Rupiah
-     */
-    public function exchangeCoins(Request $request)
-    {
-        $validated = $request->validate([
-            'coins_to_exchange' => 'required|integer|min:1',
-        ]);
-
-        $user = $request->user();
-        $coinsToExchange = $validated['coins_to_exchange'];
-
-        // Cek apakah koin user mencukupi
-        if ($user->balance_coins < $coinsToExchange) {
-            return response()->json(['message' => 'Koin Anda tidak mencukupi.'], 422);
-        }
-
-        // Perhitungan: 1 koin = 100 Rupiah
-        $rpAmount = $coinsToExchange * 100;
-
         try {
-            DB::transaction(function () use ($user, $coinsToExchange, $rpAmount) {
-                // 1. Kurangi saldo koin user
-                $user->decrement('balance_coins', $coinsToExchange);
+            // Revoke current token
+            $request->user()->currentAccessToken()->delete();
 
-                // 2. Tambah saldo Rupiah user
-                $user->increment('balance_rp', $rpAmount);
+            return response()->json([
+                'success' => true,
+                'message' => 'Logout successful'
+            ]);
 
-                // 3. Catat transaksi
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'coin_exchange_to_rp',
-                    'amount_rp' => $rpAmount,
-                    'amount_coins' => -$coinsToExchange,
-                    'description' => "$coinsToExchange koin ditukar menjadi Rp. " . number_format($rpAmount, 0, ',', '.'),
-                ]);
-            });
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Gagal menukar koin, silakan coba lagi.', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Logout failed',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'message' => 'Koin berhasil ditukarkan!',
-            'new_balance_rp' => $user->fresh()->balance_rp,
-            'new_balance_coins' => $user->fresh()->balance_coins,
-        ]);
     }
 
     /**
-     * Top up saldo Rupiah
+     * Logout from all devices
      */
-    public function topup(Request $request)
+    public function logoutAll(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|integer|min:1000', // Minimal top-up 1000
-        ]);
-
-        $user = $request->user();
-        $amount = $validated['amount'];
-
         try {
-            DB::transaction(function () use ($user, $amount) {
-                // 1. Tambah saldo Rupiah user
-                $user->increment('balance_rp', $amount);
+            // Revoke all tokens for the user
+            $request->user()->tokens()->delete();
 
-                // 2. Catat transaksi
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'topup',
-                    'amount_rp' => $amount,
-                    'description' => "Top up saldo sebesar Rp. " . number_format($amount, 0, ',', '.'),
-                ]);
-            });
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out from all devices successfully'
+            ]);
+
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Gagal top up saldo.', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Logout from all devices failed',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'message' => 'Top up berhasil!',
-            'new_balance_rp' => $user->fresh()->balance_rp,
-        ]);
     }
 
     /**
-     * Transfer saldo
+     * Check token validity and permissions
      */
-    public function transfer(Request $request)
+    public function checkToken(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|integer|min:100',
-            'destination' => 'required|string',
-        ]);
-
-        $user = $request->user();
-        $amount = $validated['amount'];
-
-        // Cek apakah saldo mencukupi
-        if ($user->balance_rp < $amount) {
-            return response()->json(['message' => 'Saldo Anda tidak mencukupi.'], 422);
-        }
-
         try {
-            DB::transaction(function () use ($user, $amount, $validated) {
-                // 1. Kurangi saldo Rupiah user
-                $user->decrement('balance_rp', $amount);
+            $user = $request->user();
+            $token = $request->user()->currentAccessToken();
 
-                // 2. Catat transaksi
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'transfer_out',
-                    'amount_rp' => -$amount,
-                    'description' => "Transfer ke {$validated['destination']}",
-                ]);
-            });
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'valid' => true,
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'is_admin' => $user->isAdmin(),
+                        'is_user' => $user->isUser(),
+                    ],
+                    'token' => [
+                        'name' => $token->name,
+                        'abilities' => $token->abilities,
+                        'created_at' => $token->created_at,
+                        'last_used_at' => $token->last_used_at,
+                    ]
+                ]
+            ]);
+
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Gagal melakukan transfer.', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Token validation failed',
+                'error' => $e->getMessage()
+            ], 401);
         }
-
-        return response()->json([
-            'message' => 'Transfer berhasil!',
-            'new_balance_rp' => $user->fresh()->balance_rp,
-        ]);
     }
 }

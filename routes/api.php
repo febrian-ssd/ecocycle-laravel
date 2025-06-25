@@ -1,246 +1,233 @@
 <?php
-// routes/api.php - COMPLETE API ROUTES WITH FIXES
+// routes/api.php - Enhanced with Role-based Routing
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DropboxController;
 use App\Http\Controllers\Api\ScanController;
 use App\Http\Controllers\Api\EcopayController;
 use App\Http\Controllers\Api\HistoryController;
+use App\Http\Controllers\Api\AdminController;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes with Role-based Access Control
 |--------------------------------------------------------------------------
 */
 
 // Public routes (no authentication required)
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
 });
 
-// Alternative auth routes (for compatibility)
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+// Alternative auth routes for compatibility
+Route::post('register', [AuthController::class, 'register']);
+Route::post('login', [AuthController::class, 'login']);
 
-// Public dropbox routes
-Route::get('/dropboxes', [DropboxController::class, 'index']);
-Route::get('/dropboxes/{id}', [DropboxController::class, 'show']);
-Route::post('/dropboxes/nearby', [DropboxController::class, 'getNearby']);
-Route::get('/dropboxes/stats', [DropboxController::class, 'getStats']);
+// Public dropbox routes (for map display)
+Route::get('dropboxes', [DropboxController::class, 'index']);
+Route::get('dropboxes/{id}', [DropboxController::class, 'show']);
+Route::post('dropboxes/nearby', [DropboxController::class, 'getNearby']);
 
 // Protected routes (require authentication)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
 
-    // Auth routes
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', function (Request $request) {
-        return response()->json([
-            'success' => true,
-            'data' => $request->user()
-        ]);
-    });
+    // General authenticated routes (all roles)
+    Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::post('auth/logout-all', [AuthController::class, 'logoutAll']);
+    Route::get('auth/user', [AuthController::class, 'user']);
+    Route::get('auth/check-token', [AuthController::class, 'checkToken']);
 
-    // User profile routes
-    Route::get('/profile', [HistoryController::class, 'getUserProfile']);
-    Route::put('/profile', function(Request $request) {
-        try {
-            $user = $request->user();
-            $validated = $request->validate([
-                'name' => 'sometimes|string|max:255',
-                'email' => 'sometimes|email|unique:users,email,' . $user->id,
-                'password' => 'sometimes|string|min:8',
-            ]);
+    // User-only routes (normal users, not admins)
+    Route::middleware(['role:user'])->prefix('user')->group(function () {
 
-            if (isset($validated['password'])) {
-                $validated['password'] = Hash::make($validated['password']);
+        // User profile management
+        Route::get('profile', [HistoryController::class, 'getUserProfile']);
+        Route::put('profile', function(Request $request) {
+            // Profile update logic for users
+            try {
+                $user = $request->user();
+                $validated = $request->validate([
+                    'name' => 'sometimes|string|max:255',
+                    'password' => 'sometimes|string|min:6|confirmed',
+                ]);
+
+                if (isset($validated['password'])) {
+                    $validated['password'] = Hash::make($validated['password']);
+                }
+
+                $user->update($validated);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Profile updated successfully',
+                    'data' => ['user' => $user->fresh()]
+                ]);
+
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update profile',
+                    'error' => $e->getMessage()
+                ], 500);
             }
+        });
 
-            $user->update($validated);
+        // Wallet and payment routes
+        Route::prefix('wallet')->group(function () {
+            Route::get('/', [EcopayController::class, 'getWallet']);
+            Route::get('balance', [EcopayController::class, 'getWallet']);
+        });
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Profile updated successfully',
-                'user' => $user->fresh()
-            ]);
+        Route::prefix('transactions')->group(function () {
+            Route::get('/', [EcopayController::class, 'getTransactions']);
+            Route::post('transfer', [EcopayController::class, 'transfer']);
+            Route::post('exchange-coins', [EcopayController::class, 'exchangeCoins']);
+        });
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update profile: ' . $e->getMessage()
-            ], 500);
+        // Top-up requests
+        Route::prefix('topup')->group(function () {
+            Route::post('request', [EcopayController::class, 'createTopupRequest']);
+            Route::get('requests', [EcopayController::class, 'getTopupRequests']);
+        });
+
+        // Scan and waste management
+        Route::prefix('scan')->group(function () {
+            Route::post('confirm', [ScanController::class, 'confirmScan']);
+            Route::get('history', [ScanController::class, 'getScanHistory']);
+            Route::get('stats', [ScanController::class, 'getScanStats']);
+        });
+
+        // History and statistics
+        Route::prefix('history')->group(function () {
+            Route::get('/', [HistoryController::class, 'getHistory']);
+            Route::get('scans', [HistoryController::class, 'getScanHistory']);
+            Route::get('transactions', [HistoryController::class, 'getTransactionHistory']);
+            Route::get('stats', [HistoryController::class, 'getScanStats']);
+        });
+
+        // Dropbox information for users
+        Route::get('dropboxes', [DropboxController::class, 'index']);
+        Route::get('dropboxes/stats', [DropboxController::class, 'getStats']);
+    });
+
+    // Admin-only routes
+    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+
+        // Dashboard and statistics
+        Route::get('dashboard', [AdminController::class, 'dashboard']);
+        Route::get('stats', [AdminController::class, 'getSystemStats']);
+
+        // User management
+        Route::prefix('users')->group(function () {
+            Route::get('/', [AdminController::class, 'getUsers']);
+            Route::get('{id}', [AdminController::class, 'getUser']);
+            Route::put('{id}', [AdminController::class, 'updateUser']);
+            Route::delete('{id}', [AdminController::class, 'deleteUser']);
+            Route::post('{id}/activate', [AdminController::class, 'activateUser']);
+            Route::post('{id}/deactivate', [AdminController::class, 'deactivateUser']);
+            Route::post('{id}/change-role', [AdminController::class, 'changeUserRole']);
+        });
+
+        // Dropbox management
+        Route::prefix('dropboxes')->group(function () {
+            Route::get('/', [AdminController::class, 'getDropboxes']);
+            Route::post('/', [AdminController::class, 'createDropbox']);
+            Route::get('{id}', [AdminController::class, 'getDropbox']);
+            Route::put('{id}', [AdminController::class, 'updateDropbox']);
+            Route::delete('{id}', [AdminController::class, 'deleteDropbox']);
+        });
+
+        // Top-up request management
+        Route::prefix('topup-requests')->group(function () {
+            Route::get('/', [AdminController::class, 'getTopupRequests']);
+            Route::get('{id}', [AdminController::class, 'getTopupRequest']);
+            Route::post('{id}/approve', [AdminController::class, 'approveTopupRequest']);
+            Route::post('{id}/reject', [AdminController::class, 'rejectTopupRequest']);
+        });
+
+        // Transaction monitoring
+        Route::prefix('transactions')->group(function () {
+            Route::get('/', [AdminController::class, 'getAllTransactions']);
+            Route::get('stats', [AdminController::class, 'getTransactionStats']);
+            Route::get('export', [AdminController::class, 'exportTransactions']);
+        });
+
+        // History and monitoring
+        Route::prefix('history')->group(function () {
+            Route::get('/', [AdminController::class, 'getAllHistory']);
+            Route::get('scans', [AdminController::class, 'getAllScanHistory']);
+            Route::get('export', [AdminController::class, 'exportHistory']);
+        });
+
+        // System management
+        Route::prefix('system')->group(function () {
+            Route::get('health', [AdminController::class, 'systemHealth']);
+            Route::get('logs', [AdminController::class, 'getSystemLogs']);
+            Route::post('backup', [AdminController::class, 'createBackup']);
+        });
+    });
+
+    // Common routes for both admin and user (with different data scope)
+    Route::get('wallet', function(Request $request) {
+        $user = $request->user();
+        if ($user->isAdmin()) {
+            // Admin gets aggregated wallet data
+            return app(AdminController::class)->getWalletOverview($request);
+        } else {
+            // User gets personal wallet data
+            return app(EcopayController::class)->getWallet($request);
         }
     });
 
-    // Scan routes
-    Route::prefix('scan')->group(function () {
-        Route::post('/confirm', [ScanController::class, 'confirmScan']);
-        Route::get('/history', [ScanController::class, 'getScanHistory']);
-        Route::get('/stats', [ScanController::class, 'getScanStats']);
-    });
-
-    // History routes - FIXED: All missing endpoints
-    Route::prefix('history')->group(function () {
-        Route::get('/', [HistoryController::class, 'getHistory']); // General history
-    });
-
-    // CRITICAL: Missing history endpoints that Flutter is calling
-    Route::get('/scan-history', [HistoryController::class, 'getScanHistory']);
-    Route::get('/scan-stats', [HistoryController::class, 'getScanStats']);
-    Route::get('/transaction-history', [HistoryController::class, 'getTransactionHistory']);
-    Route::get('/history', [HistoryController::class, 'getHistory']); // Fallback
-
-    // Wallet/EcoPay routes
-    Route::prefix('wallet')->group(function () {
-        Route::get('/', [EcopayController::class, 'getWallet']);
-        Route::get('/balance', [EcopayController::class, 'getBalanceSummary']);
-    });
-
-    // CRITICAL: Wallet endpoint that Flutter is calling
-    Route::get('/wallet', [EcopayController::class, 'getWallet']);
-
-    // Transaction routes
-    Route::prefix('transactions')->group(function () {
-        Route::get('/', [EcopayController::class, 'getTransactions']);
-        Route::post('/transfer', [EcopayController::class, 'transfer']);
-        Route::post('/exchange-coins', [EcopayController::class, 'exchangeCoins']);
-    });
-
-    // CRITICAL: Transaction endpoints that Flutter is calling
-    Route::get('/transactions', [EcopayController::class, 'getTransactions']);
-    Route::post('/transfer', [EcopayController::class, 'transfer']);
-    Route::post('/exchange-coins', [EcopayController::class, 'exchangeCoins']);
-
-    // Top-up routes
-    Route::prefix('topup')->group(function () {
-        Route::post('/request', [EcopayController::class, 'createTopupRequest']);
-        Route::get('/requests', [EcopayController::class, 'getTopupRequests']);
-    });
-
-    // CRITICAL: Topup endpoints that Flutter is calling
-    Route::post('/topup-request', [EcopayController::class, 'createTopupRequest']);
-    Route::get('/topup-requests', [EcopayController::class, 'getTopupRequests']);
-
-    // User statistics
-    Route::get('/stats', function(Request $request) {
-        try {
-            $user = $request->user();
-
-            $totalScans = \App\Models\History::where('user_id', $user->id)
-                                            ->where(function($query) {
-                                                $query->where('status', 'success')->orWhereNull('status');
-                                            })
-                                            ->count();
-
-            $totalWasteWeight = \App\Models\History::where('user_id', $user->id)->sum('weight');
-            $totalCoinsEarned = \App\Models\History::where('user_id', $user->id)->sum('coins_earned');
-            $totalTransactions = \App\Models\Transaction::where('user_id', $user->id)->count();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'total_scans' => (int) $totalScans,
-                    'total_waste_weight' => round((float) $totalWasteWeight, 2),
-                    'total_coins_earned' => (int) $totalCoinsEarned,
-                    'total_transactions' => (int) $totalTransactions,
-                    'current_balance_rp' => (float) ($user->balance_rp ?? 0),
-                    'current_balance_coins' => (int) ($user->balance_coins ?? 0),
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get stats',
-                'data' => [
-                    'total_scans' => 0,
-                    'total_waste_weight' => 0,
-                    'total_coins_earned' => 0,
-                    'total_transactions' => 0,
-                    'current_balance_rp' => 0,
-                    'current_balance_coins' => 0,
-                ]
-            ], 500);
-        }
-    });
-
-    // EMERGENCY: Fallback routes for debugging missing columns
-    Route::get('/debug/tables', function() {
-        try {
-            $historyColumns = \Schema::getColumnListing('histories');
-            $transactionColumns = \Schema::getColumnListing('transactions');
-            $userColumns = \Schema::getColumnListing('users');
-
-            return response()->json([
-                'success' => true,
-                'tables' => [
-                    'histories' => $historyColumns,
-                    'transactions' => $transactionColumns,
-                    'users' => $userColumns,
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
+    Route::get('stats', function(Request $request) {
+        $user = $request->user();
+        if ($user->isAdmin()) {
+            // Admin gets system-wide stats
+            return app(AdminController::class)->getSystemStats($request);
+        } else {
+            // User gets personal stats
+            return app(HistoryController::class)->getScanStats($request);
         }
     });
 });
 
-// Fallback route for API documentation or status
+// Fallback route for API documentation
 Route::get('/', function () {
     return response()->json([
-        'message' => 'EcoCycle API',
-        'version' => '1.0',
+        'message' => 'EcoCycle API v2.0',
         'status' => 'active',
         'timestamp' => now()->toISOString(),
+        'features' => [
+            'role_based_access_control' => true,
+            'token_based_authentication' => true,
+            'admin_panel_support' => true,
+            'user_wallet_management' => true,
+            'real_time_transactions' => true,
+        ],
         'endpoints' => [
-            'auth' => [
+            'authentication' => [
                 'POST /api/auth/register',
                 'POST /api/auth/login',
-                'POST /api/register (alternative)',
-                'POST /api/login (alternative)',
-                'POST /api/logout (auth required)',
+                'POST /api/auth/logout',
+                'GET /api/auth/user',
             ],
-            'dropboxes' => [
-                'GET /api/dropboxes',
-                'GET /api/dropboxes/{id}',
-                'POST /api/dropboxes/nearby',
-                'GET /api/dropboxes/stats',
+            'user_features' => [
+                'GET /api/user/profile',
+                'PUT /api/user/profile',
+                'GET /api/user/wallet',
+                'POST /api/user/transactions/transfer',
+                'POST /api/user/scan/confirm',
+                'GET /api/user/history',
             ],
-            'scan' => [
-                'POST /api/scan/confirm (auth required)',
-                'GET /api/scan/history (auth required)',
-                'GET /api/scan/stats (auth required)',
-            ],
-            'history' => [
-                'GET /api/history (auth required)',
-                'GET /api/scan-history (auth required)',
-                'GET /api/scan-stats (auth required)',
-                'GET /api/transaction-history (auth required)',
-            ],
-            'wallet' => [
-                'GET /api/wallet (auth required)',
-                'GET /api/wallet/balance (auth required)',
-            ],
-            'transactions' => [
-                'GET /api/transactions (auth required)',
-                'POST /api/transfer (auth required)',
-                'POST /api/exchange-coins (auth required)',
-            ],
-            'topup' => [
-                'POST /api/topup-request (auth required)',
-                'GET /api/topup-requests (auth required)',
-            ],
-            'profile' => [
-                'GET /api/profile (auth required)',
-                'PUT /api/profile (auth required)',
-            ],
-            'debug' => [
-                'GET /api/debug/tables (auth required)',
+            'admin_features' => [
+                'GET /api/admin/dashboard',
+                'GET /api/admin/users',
+                'POST /api/admin/dropboxes',
+                'GET /api/admin/transactions',
+                'POST /api/admin/topup-requests/{id}/approve',
             ],
         ]
     ]);
@@ -251,7 +238,7 @@ Route::fallback(function () {
     return response()->json([
         'success' => false,
         'message' => 'API endpoint not found',
-        'error' => 'The requested endpoint does not exist',
+        'error_code' => 'ENDPOINT_NOT_FOUND',
         'suggestion' => 'Please check the API documentation at GET /api/',
         'timestamp' => now()->toISOString(),
     ], 404);

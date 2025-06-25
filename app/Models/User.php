@@ -1,5 +1,5 @@
 <?php
-// app/Models/User.php - CLEAN SINGLE FILE
+// app/Models/User.php - Enhanced with Role Management
 
 namespace App\Models;
 
@@ -12,132 +12,125 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens;
 
-    /**
-     * The attributes that are mass assignable.
-     */
+    const ROLE_ADMIN = 'admin';
+    const ROLE_USER = 'user';
+
     protected $fillable = [
         'name',
         'email',
         'password',
-        'is_admin',
+        'role',
         'balance_rp',
         'balance_coins',
+        'is_active',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_admin' => 'boolean',
             'balance_rp' => 'decimal:2',
             'balance_coins' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 
-    /**
-     * Relationship dengan TopupRequest yang dibuat user
-     */
+    // Role-based methods
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isUser(): bool
+    {
+        return $this->role === self::ROLE_USER;
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return $this->role === $role;
+    }
+
+    public function getRoleDisplayName(): string
+    {
+        return match($this->role) {
+            self::ROLE_ADMIN => 'Administrator',
+            self::ROLE_USER => 'User',
+            default => 'Unknown'
+        };
+    }
+
+    // Scope for filtering by role
+    public function scopeAdmins($query)
+    {
+        return $query->where('role', self::ROLE_ADMIN);
+    }
+
+    public function scopeUsers($query)
+    {
+        return $query->where('role', self::ROLE_USER);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    // Relationships
     public function topupRequests()
     {
         return $this->hasMany(TopupRequest::class);
     }
 
-    /**
-     * Relationship dengan TopupRequest yang disetujui oleh admin
-     */
-    public function approvedTopups()
+    public function histories()
     {
-        return $this->hasMany(TopupRequest::class, 'approved_by');
+        return $this->hasMany(History::class);
     }
 
-    /**
-     * Relationship dengan TopupRequest yang ditolak oleh admin
-     */
-    public function rejectedTopups()
+    public function transactions()
     {
-        return $this->hasMany(TopupRequest::class, 'rejected_by');
+        return $this->hasMany(Transaction::class);
     }
 
-    /**
-     * Check if user is admin
-     */
-    public function isAdmin()
+    // Wallet management
+    public function getFormattedBalanceRpAttribute(): string
     {
-        return $this->is_admin;
+        return 'Rp ' . number_format($this->balance_rp ?? 0, 0, ',', '.');
     }
 
-    /**
-     * Get formatted saldo - FIXED TYPE ISSUE
-     */
-    public function getFormattedSaldoAttribute()
-    {
-        $balance = $this->balance_rp ? (float) $this->balance_rp : 0;
-        return 'Rp ' . number_format($balance, 0, ',', '.');
-    }
-
-    /**
-     * Get saldo attribute (alias for balance_rp)
-     */
-    public function getSaldoAttribute()
-    {
-        return $this->balance_rp;
-    }
-
-    /**
-     * Add saldo to user
-     */
-    public function addSaldo($amount)
+    public function addBalance(float $amount): bool
     {
         $this->increment('balance_rp', $amount);
-        return $this;
+        return true;
     }
 
-    /**
-     * Subtract saldo from user
-     */
-    public function subtractSaldo($amount)
+    public function subtractBalance(float $amount): bool
     {
         if ($this->balance_rp >= $amount) {
             $this->decrement('balance_rp', $amount);
-            return $this;
+            return true;
         }
-
-        throw new \Exception('Saldo tidak mencukupi');
+        return false;
     }
 
-    /**
-     * Check if user has sufficient saldo
-     */
-    public function hasSufficientSaldo($amount)
+    public function addCoins(int $coins): bool
     {
-        return $this->balance_rp >= $amount;
+        $this->increment('balance_coins', $coins);
+        return true;
     }
 
-    /**
-     * Scope untuk filter admin users
-     */
-    public function scopeAdmins($query)
+    public function subtractCoins(int $coins): bool
     {
-        return $query->where('is_admin', true);
-    }
-
-    /**
-     * Scope untuk filter regular users
-     */
-    public function scopeRegularUsers($query)
-    {
-        return $query->where('is_admin', false);
+        if ($this->balance_coins >= $coins) {
+            $this->decrement('balance_coins', $coins);
+            return true;
+        }
+        return false;
     }
 }
