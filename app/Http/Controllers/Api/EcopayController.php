@@ -283,4 +283,25 @@ class EcopayController extends Controller
             ], 500);
         }
     }
+    public function getWallet(Request $request)
+{
+    try {
+        $user = $request->user();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Wallet data retrieved successfully',
+            'data' => [
+                'balance_rp' => $user->balance_rp ?? 0,
+                'balance_koin' => $user->balance_koin ?? 0,
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to get wallet data',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 }
