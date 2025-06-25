@@ -35,44 +35,68 @@ class UserController extends Controller
         return view('admin.users.edit', compact('user'));
     }
 
-    public function update(Request $request, User $user)
-    {
-        $rules = [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-            'role' => ['required', 'string', 'in:admin,user'],
-        ];
+   // app/Http/Controllers/Admin/UserController.php
 
-        // Only validate password if it's provided
-        if ($request->filled('password')) {
-            $rules['password'] = ['required', 'confirmed', Rules\Password::defaults()];
-        }
+public function store(Request $request)
+{
+    $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+        'password' => ['required', 'string', 'min:8', 'confirmed'],
+        'phone_number' => ['nullable', 'string'],
+        'address' => ['nullable', 'string'],
+        'role' => ['required', 'string', 'in:admin,user'], // Perubahan di sini
+    ]);
 
-        $request->validate($rules);
-
-        try {
-            $updateData = [
-                'name' => $request->name,
-                'email' => $request->email,
-                'role' => $request->role,
-            ];
-
-            // Only update password if provided
-            if ($request->filled('password')) {
-                $updateData['password'] = Hash::make($request->password);
-            }
-
-            $user->update($updateData);
-
-            return redirect()->route('admin.users.index')
-                           ->with('success', 'Data user berhasil diperbarui!');
-
-        } catch (\Exception $e) {
-            return redirect()->back()
-                           ->withInput()
-                           ->with('error', 'Gagal memperbarui user: ' . $e->getMessage());
+    // Mencegah semua admin dihapus
+    if ($request->role !== 'admin') {
+        $adminCount = User::where('role', 'admin')->count(); // Perubahan di sini
+        if ($adminCount <= 1 && User::where('id', $request->id)->where('role', 'admin')->exists()) {
+            return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
         }
     }
+
+    User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'phone_number' => $request->phone_number,
+        'address' => $request->address,
+        'role' => $request->role, // Perubahan di sini
+    ]);
+
+    return redirect()->route('admin.user.index')->with('success', 'User berhasil ditambahkan.');
+}
+
+public function update(Request $request, User $user)
+{
+    $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+        'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+        'phone_number' => ['nullable', 'string'],
+        'address' => ['nullable', 'string'],
+        'role' => ['required', 'string', 'in:admin,user'], // Perubahan di sini
+    ]);
+
+    // Mencegah semua admin dihapus
+    if ($request->role !== 'admin') {
+        $adminCount = User::where('role', 'admin')->count(); // Perubahan di sini
+        $currentUserIsAdmin = $user->role === 'admin';
+        if ($adminCount <= 1 && $currentUserIsAdmin) {
+            return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
+        }
+    }
+
+    $data = $request->only('name', 'email', 'phone_number', 'address', 'role'); // Perubahan di sini
+    if ($request->filled('password')) {
+        $data['password'] = Hash::make($request->password);
+    }
+
+    $user->update($data);
+
+    return redirect()->route('admin.user.index')->with('success', 'User berhasil diperbarui.');
+}
 
     public function destroy(User $user)
     {

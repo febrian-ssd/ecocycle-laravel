@@ -12,25 +12,30 @@ class UserSeeder extends Seeder
     /**
      * Run the database seeds.
      */
-    public function run(): void
-    {
-        // Hapus data user lama agar tidak ada duplikat email
-        User::truncate();
+    // database/seeders/UserSeeder.php
 
-        // Buat Akun Admin
-        User::create([
-            'name' => 'Admin EcoCycle',
-            'email' => 'admin@ecocycle.com',
-            'password' => Hash::make('password'), // passwordnya adalah 'password'
-            'role' => 'admin', // <-- INI PENENTU ADMIN
-        ]);
+public function run(): void
+{
+    // Admin Utama
+    User::create([
+        'name' => 'Admin',
+        'email' => 'admin@gmail.com',
+        'password' => Hash::make('password'),
+        'phone_number' => '081234567890',
+        'address' => 'Kantor Pusat',
+        'role' => 'admin', // Perubahan di sini
+        'is_active' => true,
+    ]);
 
-        // Buat Akun User Biasa
-        User::create([
-            'name' => 'User Biasa',
-            'email' => 'user@ecocycle.com',
-            'password' => Hash::make('password'), // passwordnya adalah 'password'
-            'role' => 'user', // <-- INI PENENTU USER BIASA
-        ]);
-    }
+    // User Biasa
+    User::create([
+        'name' => 'User Biasa',
+        'email' => 'user@gmail.com',
+        'password' => Hash::make('password'),
+        'phone_number' => '089876543210',
+        'address' => 'Alamat User',
+        'role' => 'user', // Perubahan di sini
+        'is_active' => true,
+    ]);
+}
 }
