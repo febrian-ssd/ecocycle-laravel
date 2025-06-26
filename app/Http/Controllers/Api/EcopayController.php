@@ -69,7 +69,7 @@ class EcopayController extends Controller
                     'amount' => $topupRequest->amount,
                     'status' => $topupRequest->status,
                     'created_at' => $topupRequest->created_at,
-                    'formatted_amount' => 'Rp ' . number_format((float)$topupRequest->amount, 0, ',', '.'),
+                    'formatted_amount' => 'Rp ' . number_format((float) $topupRequest->amount, 0, ',', '.'),
                 ]
             ], 201);
 
@@ -95,25 +95,25 @@ class EcopayController extends Controller
             }
 
             $requests = TopupRequest::where('user_id', $user->id)
-                        ->orderBy('created_at', 'desc')
-                        ->limit(20)
-                        ->get()
-                        ->map(function($request) {
-                            return [
-                                'id' => $request->id,
-                                'amount' => (float) $request->amount,
-                                // PERBAIKAN: Menambahkan (float)
-                                'formatted_amount' => 'Rp ' . number_format((float)$request->amount, 0, ',', '.'),
-                                'status' => $request->status,
-                                'status_label' => $this->getStatusLabel($request->status),
-                                'payment_method' => $request->payment_method,
-                                'user_note' => $request->user_note,
-                                'admin_note' => $request->admin_note,
-                                'created_at' => $request->created_at,
-                                'approved_at' => $request->approved_at,
-                                'formatted_date' => $request->created_at->format('d M Y H:i'),
-                            ];
-                        });
+                ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get()
+                ->map(function ($request) {
+                    return [
+                        'id' => $request->id,
+                        'amount' => (float) $request->amount,
+                        // PERBAIKAN: Menambahkan (float)
+                        'formatted_amount' => 'Rp ' . number_format((float) $request->amount, 0, ',', '.'),
+                        'status' => $request->status,
+                        'status_label' => $this->getStatusLabel($request->status),
+                        'payment_method' => $request->payment_method,
+                        'user_note' => $request->user_note,
+                        'admin_note' => $request->admin_note,
+                        'created_at' => $request->created_at,
+                        'approved_at' => $request->approved_at,
+                        'formatted_date' => $request->created_at->format('d M Y H:i'),
+                    ];
+                });
 
             return response()->json(['success' => true, 'data' => $requests]);
         } catch (\Exception $e) {
@@ -178,7 +178,7 @@ class EcopayController extends Controller
                     'formatted_amount' => 'Rp ' . number_format($amount, 0, ',', '.'),
                     'recipient_name' => $recipient->name,
                     'new_balance_rp' => (float) $user->fresh()->balance_rp,
-                    'formatted_balance' => 'Rp ' . number_format((float)$user->fresh()->balance_rp, 0, ',', '.'),
+                    'formatted_balance' => 'Rp ' . number_format((float) $user->fresh()->balance_rp, 0, ',', '.'),
                 ]
             ]);
 
@@ -205,6 +205,100 @@ class EcopayController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to get wallet data', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function exchangeCoins(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'coin_amount' => 'required|integer|min:100|max:50000',
+            ]);
+
+            $user = $request->user();
+            $coinAmount = $validated['coin_amount'];
+            $rupiahAmount = $coinAmount * 10; // 1 koin = Rp 10
+
+            if ($user->balance_coins < $coinAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Koin tidak mencukupi untuk ditukar.'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            $user->decrement('balance_coins', $coinAmount);
+            $user->increment('balance_rp', $rupiahAmount);
+
+            Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'coin_exchange_to_rp',
+                'amount_rp' => $rupiahAmount,
+                'amount_coins' => -$coinAmount,
+                'description' => "Tukar {$coinAmount} koin menjadi " . number_format($rupiahAmount, 0, ',', '.'),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Penukaran koin berhasil!',
+                'data' => [
+                    'coins_exchanged' => $coinAmount,
+                    'rupiah_received' => $rupiahAmount,
+                    'formatted_rupiah' => 'Rp ' . number_format($rupiahAmount, 0, ',', '.'),
+                    'new_balance_coins' => $user->fresh()->balance_coins,
+                    'new_balance_rp' => $user->fresh()->balance_rp,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menukar koin.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user transactions - MISSING METHOD
+     */
+    public function getTransactions(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            $transactions = Transaction::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $transactions->map(function ($transaction) {
+                    return [
+                        'id' => $transaction->id,
+                        'type' => $transaction->type,
+                        'amount_rp' => (float) ($transaction->amount_rp ?? 0),
+                        'amount_coins' => (int) ($transaction->amount_coins ?? 0),
+                        'description' => $transaction->description,
+                        'created_at' => $transaction->created_at,
+                        'type_display_name' => $transaction->type_label,
+                        'is_income' => $transaction->is_income,
+                        'is_expense' => !$transaction->is_income,
+                    ];
+                })
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data transaksi',
+                'data' => []
+            ], 500);
         }
     }
 }

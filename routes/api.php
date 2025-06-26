@@ -20,6 +20,13 @@ use App\Http\Controllers\Api\AdminController;
 // RUTE PUBLIK (Tidak Perlu Login)
 // ========================================================================
 // Rute untuk login dan register HARUS berada di sini, di luar middleware auth.
+Route::get('health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now(),
+        'version' => '1.0.0'
+    ]);
+});
 
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
@@ -56,6 +63,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
             $user->update($validated);
             return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
         });
+
+        Route::get('transactions', [HistoryController::class, 'getTransactions']);
+        Route::post('topup', [EcopayController::class, 'createTopupRequest']);
+        Route::post('exchange-coins', [EcopayController::class, 'exchangeCoins']);
+        Route::get('history', [HistoryController::class, 'getHistory']);
 
         // Rute terkait Ecopay / Wallet
         Route::get('wallet', [EcopayController::class, 'getWallet']);
