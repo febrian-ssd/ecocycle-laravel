@@ -1,5 +1,5 @@
 <?php
-// routes/api.php - PERBAIKAN LENGKAP
+// routes/api.php - FIXED VERSION
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -17,9 +17,8 @@ use App\Http\Controllers\Api\AdminController;
 */
 
 // ========================================================================
-// RUTE PUBLIK (Tidak Perlu Login)
+// HEALTH CHECK ROUTE
 // ========================================================================
-// Rute untuk login dan register HARUS berada di sini, di luar middleware auth.
 Route::get('health', function () {
     return response()->json([
         'status' => 'ok',
@@ -28,30 +27,35 @@ Route::get('health', function () {
     ]);
 });
 
+// ========================================================================
+// RUTE PUBLIK (Tidak Perlu Login)
+// ========================================================================
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
 
 // Rute untuk menampilkan lokasi dropbox di peta (bisa diakses publik)
 Route::get('dropboxes', [DropboxController::class, 'index']);
-
+Route::get('dropboxes/nearby', [DropboxController::class, 'getNearby']);
+Route::get('dropboxes/{id}', [DropboxController::class, 'show']);
 
 // ========================================================================
 // RUTE YANG DILINDUNGI (Wajib Login)
 // ========================================================================
-// Semua rute di dalam grup ini hanya bisa diakses setelah user berhasil login.
 Route::middleware(['auth:sanctum'])->group(function () {
 
-    // --- Rute Umum untuk semua user yang sudah login ---
-    Route::get('auth/user', [AuthController::class, 'user']);
-    Route::post('auth/logout', [AuthController::class, 'logout']);
-    Route::get('auth/check-token', [AuthController::class, 'checkToken']);
+    // --- Rute Autentikasi ---
+    Route::prefix('auth')->group(function () {
+        Route::get('user', [AuthController::class, 'user']);
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('logout-all', [AuthController::class, 'logoutAll']);
+        Route::get('check-token', [AuthController::class, 'checkToken']);
+    });
 
     // --- Rute Khusus untuk Role 'user' ---
     Route::middleware(['role:user'])->prefix('user')->group(function () {
-        // Kelola profil user
+        // Profile Management
         Route::get('profile', [HistoryController::class, 'getUserProfile']);
         Route::put('profile', function(Request $request) {
-            // Logika update profil Anda
             $user = $request->user();
             $validated = $request->validate([
                 'name' => 'sometimes|string|max:255',
@@ -61,35 +65,41 @@ Route::middleware(['auth:sanctum'])->group(function () {
                 $validated['password'] = \Illuminate\Support\Facades\Hash::make($validated['password']);
             }
             $user->update($validated);
-            return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile updated successfully',
+                'data' => $user
+            ]);
         });
 
-        Route::get('transactions', [HistoryController::class, 'getTransactions']);
-        Route::post('topup', [EcopayController::class, 'createTopupRequest']);
-        Route::post('exchange-coins', [EcopayController::class, 'exchangeCoins']);
-        Route::get('history', [HistoryController::class, 'getHistory']);
-
-        // Rute terkait Ecopay / Wallet
+        // Wallet & Transactions
         Route::get('wallet', [EcopayController::class, 'getWallet']);
         Route::get('transactions', [EcopayController::class, 'getTransactions']);
         Route::post('transfer', [EcopayController::class, 'transfer']);
         Route::post('exchange-coins', [EcopayController::class, 'exchangeCoins']);
 
-        // Rute terkait Scan
-        Route::post('scan/confirm', [ScanController::class, 'confirmScan']);
-        Route::get('scan/history', [ScanController::class, 'getScanHistory']);
-        Route::get('scan/stats', [ScanController::class, 'getScanStats']);
+        // Topup
+        Route::post('topup', [EcopayController::class, 'createTopupRequest']);
+        Route::get('topup-requests', [EcopayController::class, 'getTopupRequests']);
 
-        // Dan rute-rute user lainnya...
+        // Scan
+        Route::post('scan/confirm', [ScanController::class, 'confirmScan']);
+        Route::get('scan/history', [HistoryController::class, 'getScanHistory']);
+        Route::get('scan/stats', [HistoryController::class, 'getScanStats']);
+
+        // History
+        Route::get('history', [HistoryController::class, 'getHistory']);
     });
 
     // --- Rute Khusus untuk Role 'admin' ---
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
         Route::get('dashboard', [AdminController::class, 'dashboard']);
-        // Dan rute-rute admin lainnya...
+        Route::get('users', [AdminController::class, 'getUsers']);
+        Route::get('dropboxes', [AdminController::class, 'getDropboxes']);
+        Route::get('topup-requests', [AdminController::class, 'getTopupRequests']);
+        Route::get('transactions', [AdminController::class, 'getAllTransactions']);
     });
 });
-
 
 // Fallback jika endpoint tidak ditemukan
 Route::fallback(function () {

@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Api/ScanController.php
+// app/Http/Controllers/Api/ScanController.php - FIXED VERSION
 
 namespace App\Http\Controllers\Api;
 
@@ -23,13 +23,16 @@ class ScanController extends Controller
 
         $user = $request->user();
 
-        // Cari dropbox berdasarkan kode atau ambil yang pertama jika tidak ada sistem kode
-        $dropbox = Dropbox::where('status', 'active')->first();
+        // Cari dropbox berdasarkan kode atau ID
+        $dropbox = Dropbox::where('id', $validated['dropbox_code'])
+                         ->orWhere('location_name', 'LIKE', '%' . $validated['dropbox_code'] . '%')
+                         ->where('status', 'active')
+                         ->first();
 
         if (!$dropbox) {
             return response()->json([
-                'message' => 'Dropbox tidak ditemukan atau sedang maintenance.',
-                'success' => false
+                'success' => false,
+                'message' => 'Dropbox tidak ditemukan atau sedang maintenance.'
             ], 404);
         }
 
@@ -64,8 +67,8 @@ class ScanController extends Controller
             });
 
             return response()->json([
-                'message' => "Scan berhasil! Anda mendapat {$coins_awarded} koin!",
                 'success' => true,
+                'message' => "Scan berhasil! Anda mendapat {$coins_awarded} koin!",
                 'data' => [
                     'coins_earned' => $coins_awarded,
                     'waste_type' => $validated['waste_type'],
@@ -94,73 +97,11 @@ class ScanController extends Controller
             }
 
             return response()->json([
-                'message' => 'Transaksi gagal, silakan coba lagi.',
                 'success' => false,
+                'message' => 'Transaksi gagal, silakan coba lagi.',
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Get scan history for user
-     */
-    public function getScanHistory(Request $request)
-    {
-        $user = $request->user();
-
-        $history = History::where('user_id', $user->id)
-                         ->with('dropbox')
-                         ->orderBy('created_at', 'desc')
-                         ->limit(50)
-                         ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $history
-        ]);
-    }
-
-    /**
-     * Get user scan statistics
-     */
-    public function getScanStats(Request $request)
-    {
-        $user = $request->user();
-
-        $totalScans = History::where('user_id', $user->id)->count();
-        $successfulScans = History::where('user_id', $user->id)->where('status', 'success')->count();
-        $totalCoinsEarned = History::where('user_id', $user->id)->sum('coins_earned');
-        $totalWasteWeight = History::where('user_id', $user->id)->sum('weight');
-
-        // Statistik per jenis sampah
-        $wasteTypeStats = History::where('user_id', $user->id)
-            ->where('status', 'success')
-            ->selectRaw('waste_type, COUNT(*) as count, SUM(weight) as total_weight, SUM(coins_earned) as total_coins')
-            ->groupBy('waste_type')
-            ->get();
-
-        // Statistik bulanan (6 bulan terakhir)
-        $monthlyStats = History::where('user_id', $user->id)
-            ->where('status', 'success')
-            ->where('created_at', '>=', now()->subMonths(6))
-            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as scans, SUM(coins_earned) as coins')
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'total_scans' => $totalScans,
-                'successful_scans' => $successfulScans,
-                'total_coins_earned' => $totalCoinsEarned,
-                'total_waste_weight' => round($totalWasteWeight, 2),
-                'success_rate' => $totalScans > 0 ? round(($successfulScans / $totalScans) * 100, 1) : 0,
-                'waste_type_breakdown' => $wasteTypeStats,
-                'monthly_stats' => $monthlyStats,
-            ]
-        ]);
     }
 
     /**

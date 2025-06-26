@@ -15,6 +15,31 @@ use App\Models\TopupRequest;
 class EcopayController extends Controller
 {
     /**
+     * Get user wallet - FIXED VERSION
+     */
+    public function getWallet(Request $request)
+    {
+        try {
+            $user = $request->user();
+            return response()->json([
+                'success' => true,
+                'message' => 'Wallet data retrieved successfully',
+                'data' => [
+                    'balance_rp' => (float) ($user->balance_rp ?? 0),
+                    'balance_koin' => (int) ($user->balance_coins ?? 0),
+                    'balance_coins' => (int) ($user->balance_coins ?? 0), // alias
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get wallet data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Create topup request - FIXED VERSION
      */
     public function createTopupRequest(Request $request)
@@ -28,6 +53,7 @@ class EcopayController extends Controller
 
             $user = $request->user();
 
+            // Check if table exists, if not create it
             if (!Schema::hasTable('topup_requests')) {
                 Log::error('TopupRequest table missing - creating basic structure');
                 Schema::create('topup_requests', function ($table) {
@@ -60,13 +86,12 @@ class EcopayController extends Controller
 
             Log::info("Topup request created: ID {$topupRequest->id}, Amount {$validated['amount']}, User {$user->id}");
 
-            // PERBAIKAN: Menambahkan (float) untuk memastikan tipe data benar
             return response()->json([
                 'success' => true,
                 'message' => 'Permintaan top up berhasil dibuat. Silakan tunggu konfirmasi admin.',
                 'data' => [
                     'request_id' => $topupRequest->id,
-                    'amount' => $topupRequest->amount,
+                    'amount' => (float) $topupRequest->amount,
                     'status' => $topupRequest->status,
                     'created_at' => $topupRequest->created_at,
                     'formatted_amount' => 'Rp ' . number_format((float) $topupRequest->amount, 0, ',', '.'),
@@ -74,62 +99,28 @@ class EcopayController extends Controller
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json(['success' => false, 'message' => 'Data tidak valid', 'errors' => $e->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Topup request creation failed', ['user_id' => $request->user()->id ?? 'unknown', 'amount' => $request->input('amount'), 'error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Gagal membuat permintaan top up.', 'error_code' => 'TOPUP_REQUEST_FAILED'], 500);
+            Log::error('Topup request creation failed', [
+                'user_id' => $request->user()->id ?? 'unknown',
+                'amount' => $request->input('amount'),
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat permintaan top up.',
+                'error_code' => 'TOPUP_REQUEST_FAILED'
+            ], 500);
         }
     }
 
     /**
-     * Get user topup requests - IMPROVED VERSION
-     */
-    public function getTopupRequests(Request $request)
-    {
-        try {
-            $user = $request->user();
-
-            if (!Schema::hasTable('topup_requests')) {
-                return response()->json(['success' => true, 'data' => [], 'message' => 'Belum ada permintaan top up']);
-            }
-
-            $requests = TopupRequest::where('user_id', $user->id)
-                ->orderBy('created_at', 'desc')
-                ->limit(20)
-                ->get()
-                ->map(function ($request) {
-                    return [
-                        'id' => $request->id,
-                        'amount' => (float) $request->amount,
-                        // PERBAIKAN: Menambahkan (float)
-                        'formatted_amount' => 'Rp ' . number_format((float) $request->amount, 0, ',', '.'),
-                        'status' => $request->status,
-                        'status_label' => $this->getStatusLabel($request->status),
-                        'payment_method' => $request->payment_method,
-                        'user_note' => $request->user_note,
-                        'admin_note' => $request->admin_note,
-                        'created_at' => $request->created_at,
-                        'approved_at' => $request->approved_at,
-                        'formatted_date' => $request->created_at->format('d M Y H:i'),
-                    ];
-                });
-
-            return response()->json(['success' => true, 'data' => $requests]);
-        } catch (\Exception $e) {
-            Log::error('Get topup requests failed', ['user_id' => $request->user()->id, 'error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Gagal mengambil data permintaan top up', 'data' => []], 500);
-        }
-    }
-
-    private function getStatusLabel($status)
-    {
-        $labels = ['pending' => 'Menunggu Konfirmasi', 'approved' => 'Disetujui', 'rejected' => 'Ditolak'];
-        return $labels[$status] ?? 'Unknown';
-    }
-
-    /**
-     * Transfer saldo - ENHANCED ERROR HANDLING
+     * Transfer saldo - FIXED VERSION
      */
     public function transfer(Request $request)
     {
@@ -145,16 +136,25 @@ class EcopayController extends Controller
             $recipientEmail = $validated['email'];
 
             if (($user->balance_rp ?? 0) < $amount) {
-                return response()->json(['success' => false, 'message' => 'Saldo Anda tidak mencukupi.'], 422);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Saldo Anda tidak mencukupi.'
+                ], 422);
             }
 
             $recipient = User::where('email', $recipientEmail)->first();
             if (!$recipient) {
-                return response()->json(['success' => false, 'message' => 'Email penerima tidak terdaftar.'], 404);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email penerima tidak terdaftar.'
+                ], 404);
             }
 
             if ($recipient->id === $user->id) {
-                return response()->json(['success' => false, 'message' => 'Anda tidak dapat transfer ke diri sendiri.'], 422);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak dapat transfer ke diri sendiri.'
+                ], 422);
             }
 
             DB::beginTransaction();
@@ -162,14 +162,28 @@ class EcopayController extends Controller
             $user->decrement('balance_rp', $amount);
             $recipient->increment('balance_rp', $amount);
 
-            Transaction::create(['user_id' => $user->id, 'type' => 'transfer_out', 'amount_rp' => -$amount, 'description' => "Transfer ke {$recipient->name}"]);
-            Transaction::create(['user_id' => $recipient->id, 'type' => 'transfer_in', 'amount_rp' => $amount, 'description' => "Transfer dari {$user->name}"]);
+            Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'transfer_out',
+                'amount_rp' => -$amount,
+                'description' => "Transfer ke {$recipient->name}"
+            ]);
+
+            Transaction::create([
+                'user_id' => $recipient->id,
+                'type' => 'transfer_in',
+                'amount_rp' => $amount,
+                'description' => "Transfer dari {$user->name}"
+            ]);
 
             DB::commit();
 
-            Log::info("Transfer successful", ['from_user' => $user->id, 'to_user' => $recipient->id, 'amount' => $amount]);
+            Log::info("Transfer successful", [
+                'from_user' => $user->id,
+                'to_user' => $recipient->id,
+                'amount' => $amount
+            ]);
 
-            // PERBAIKAN: Menambahkan (float)
             return response()->json([
                 'success' => true,
                 'message' => 'Transfer berhasil!',
@@ -183,31 +197,27 @@ class EcopayController extends Controller
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json(['success' => false, 'message' => 'Data tidak valid', 'errors' => $e->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Transfer failed', ['user_id' => $request->user()->id, 'error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Gagal melakukan transfer.'], 500);
-        }
-    }
-
-    public function getWallet(Request $request)
-    {
-        try {
-            $user = $request->user();
-            return response()->json([
-                'success' => true,
-                'message' => 'Wallet data retrieved successfully',
-                'data' => [
-                    'balance_rp' => $user->balance_rp ?? 0,
-                    'balance_koin' => $user->balance_koin ?? 0,
-                ]
+            Log::error('Transfer failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage()
             ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to get wallet data', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan transfer.'
+            ], 500);
         }
     }
 
+    /**
+     * Exchange coins - FIXED VERSION
+     */
     public function exchangeCoins(Request $request)
     {
         try {
@@ -264,7 +274,7 @@ class EcopayController extends Controller
     }
 
     /**
-     * Get user transactions - MISSING METHOD
+     * Get user transactions - FIXED VERSION
      */
     public function getTransactions(Request $request)
     {
@@ -282,6 +292,7 @@ class EcopayController extends Controller
                     return [
                         'id' => $transaction->id,
                         'type' => $transaction->type,
+                        'type_label' => $transaction->type_label,
                         'amount_rp' => (float) ($transaction->amount_rp ?? 0),
                         'amount_coins' => (int) ($transaction->amount_coins ?? 0),
                         'description' => $transaction->description,
@@ -300,5 +311,65 @@ class EcopayController extends Controller
                 'data' => []
             ], 500);
         }
+    }
+
+    /**
+     * Get user topup requests - FIXED VERSION
+     */
+    public function getTopupRequests(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            if (!Schema::hasTable('topup_requests')) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'Belum ada permintaan top up'
+                ]);
+            }
+
+            $requests = TopupRequest::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get()
+                ->map(function ($request) {
+                    return [
+                        'id' => $request->id,
+                        'amount' => (float) $request->amount,
+                        'formatted_amount' => 'Rp ' . number_format((float) $request->amount, 0, ',', '.'),
+                        'status' => $request->status,
+                        'status_label' => $this->getStatusLabel($request->status),
+                        'payment_method' => $request->payment_method,
+                        'user_note' => $request->user_note,
+                        'admin_note' => $request->admin_note,
+                        'created_at' => $request->created_at,
+                        'approved_at' => $request->approved_at,
+                        'formatted_date' => $request->created_at->format('d M Y H:i'),
+                    ];
+                });
+
+            return response()->json(['success' => true, 'data' => $requests]);
+        } catch (\Exception $e) {
+            Log::error('Get topup requests failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data permintaan top up',
+                'data' => []
+            ], 500);
+        }
+    }
+
+    private function getStatusLabel($status)
+    {
+        $labels = [
+            'pending' => 'Menunggu Konfirmasi',
+            'approved' => 'Disetujui',
+            'rejected' => 'Ditolak'
+        ];
+        return $labels[$status] ?? 'Unknown';
     }
 }
