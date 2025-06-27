@@ -7,21 +7,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'EcoCycle - Sistem Pengelolaan Sampah Pintar')</title>
 
-    <!-- DNS Prefetch -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link rel="dns-prefetch" href="//maps.googleapis.com">
 
-    <!-- Fonts -->
     <link href="https://fonts.bunny.net/css?family=Nunito:300,400,500,600,700" rel="stylesheet">
 
-    <!-- CSS Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_Maps_API_KEY&libraries=places" defer></script>
 
-    <!-- Leaflet Maps (Alternative) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -585,7 +580,6 @@
     </div>
 
     @guest
-        <!-- Login Popup -->
         <div id="login-popup" class="popup-overlay">
             <div class="popup-container">
                 <span class="close-btn" data-close-popup>&times;</span>
@@ -614,7 +608,6 @@
             </div>
         </div>
 
-        <!-- Register Popup -->
         <div id="register-popup" class="popup-overlay">
             <div class="popup-container">
                 <span class="close-btn" data-close-popup>&times;</span>
@@ -655,7 +648,6 @@
         </div>
     @endguest
 
-    <!-- Bootstrap & JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>

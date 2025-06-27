@@ -82,7 +82,7 @@ public function update(Request $request, User $user)
     // Mencegah semua admin dihapus
     if ($request->role !== 'admin') {
         $adminCount = User::where('role', 'admin')->count(); // Perubahan di sini
-        $currentUserIsAdmin = $user->role === 'admin';
+        $currentUserIsAdmin = $user->isAdmin();
         if ($adminCount <= 1 && $currentUserIsAdmin) {
             return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
         }

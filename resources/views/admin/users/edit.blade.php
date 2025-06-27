@@ -495,7 +495,6 @@
 
 @section('content')
     <div class="admin-page-content">
-        <!-- Page Header -->
         <div class="page-header">
             <h1 class="page-title">
                 <i class="fas fa-user-edit"></i>
@@ -510,7 +509,6 @@
             </nav>
         </div>
 
-        <!-- Error Messages -->
         @if ($errors->any())
             <div class="alert alert-danger-custom alert-custom">
                 <h6><i class="fas fa-exclamation-triangle"></i> Terdapat kesalahan pada form:</h6>
@@ -522,7 +520,6 @@
             </div>
         @endif
 
-        <!-- Main Form Card -->
         <div class="main-card">
             <div class="card-header-custom">
                 <h5>
@@ -532,7 +529,6 @@
             </div>
 
             <div class="card-body-custom">
-                <!-- User Profile Display -->
                 <div class="user-profile-section">
                     <div class="user-avatar-large">
                         {{ strtoupper(substr($user->name, 0, 1)) }}
@@ -540,9 +536,9 @@
                     <div class="user-profile-info">
                         <h4>{{ $user->name }}</h4>
                         <p>{{ $user->email }}</p>
-                        <span class="user-status-badge {{ $user->is_admin ? 'admin' : 'user' }}">
-                            <i class="fas {{ $user->is_admin ? 'fa-crown' : 'fa-user' }}"></i>
-                            {{ $user->is_admin ? 'Administrator' : 'Regular User' }}
+                        <span class="user-status-badge {{ $user->isAdmin() ? 'admin' : 'user' }}">
+                            <i class="fas {{ $user->isAdmin() ? 'fa-crown' : 'fa-user' }}"></i>
+                            {{ $user->isAdmin() ? 'Administrator' : 'Regular User' }}
                         </span>
                     </div>
                 </div>
@@ -551,7 +547,6 @@
                     @csrf
                     @method('PUT')
 
-                    <!-- Basic Information Section -->
                     <div class="form-section">
                         <h6 class="form-section-title">
                             <i class="fas fa-user"></i>
@@ -595,7 +590,6 @@
                         </div>
                     </div>
 
-                    <!-- Role & Permissions Section -->
                     <div class="form-section">
                         <h6 class="form-section-title">
                             <i class="fas fa-shield-alt"></i>
@@ -620,7 +614,6 @@
                         </div>
                     </div>
 
-                    <!-- Password Section -->
                     <div class="form-section">
                         <h6 class="form-section-title">
                             <i class="fas fa-key"></i>
@@ -672,7 +665,6 @@
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
                     <div class="action-buttons">
                         <a href="{{ route('admin.users.index') }}" class="btn-custom btn-secondary-custom">
                             <i class="fas fa-times"></i>
@@ -699,7 +691,6 @@
         </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
     <div class="modal fade" id="deleteModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
