@@ -237,7 +237,7 @@
     }
 
     .custom-table tbody td {
-        padding: 20px 25px;
+        padding: 15px 25px;
         border: none;
         border-bottom: 1px solid #f1f1f1;
         vertical-align: middle;
@@ -283,16 +283,20 @@
     .user-details small {
         color: #6c757d;
         font-size: 13px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
+        display: block;
         margin-top: 2px;
+    }
+
+    .admin-note {
+        font-size: 12px;
+        color: #007bff;
+        font-style: italic;
     }
 
     /* Amount Display */
     .amount-display {
         font-family: 'Courier New', monospace;
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 700;
         color: #28a745;
         background: #e8f5e8;
@@ -302,10 +306,10 @@
     }
 
     /* Status Badges */
-    .status-badge {
-        padding: 8px 15px;
+    .status-badge, .type-badge {
+        padding: 6px 12px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -329,21 +333,6 @@
         color: white;
     }
 
-    .status-badge i {
-        font-size: 10px;
-    }
-
-    .type-badge {
-        padding: 8px 15px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
     .type-badge.manual {
         background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
         color: white;
@@ -389,125 +378,11 @@
         color: white;
     }
 
-    .action-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        color: white;
-    }
-
-    .action-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    /* Time Display */
-    .time-display {
-        font-size: 13px;
-        color: #6c757d;
-    }
-
-    .time-relative {
-        font-size: 11px;
-        color: #999;
-        margin-top: 2px;
-    }
-
     /* Empty State */
     .empty-state {
         text-align: center;
         padding: 60px 20px;
         color: #6c757d;
-    }
-
-    .empty-state i {
-        font-size: 4rem;
-        margin-bottom: 20px;
-        opacity: 0.3;
-    }
-
-    .empty-state h4 {
-        margin-bottom: 10px;
-        color: #495057;
-    }
-
-    /* Confirmation Modal */
-    .modal-content {
-        border: none;
-        border-radius: 15px;
-        overflow: hidden;
-    }
-
-    .modal-header.confirm-approve {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        border: none;
-    }
-
-    .modal-header.confirm-reject {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        border: none;
-    }
-
-    .modal-body {
-        padding: 30px;
-    }
-
-    .confirm-amount {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        margin: 15px 0;
-        border: 2px solid #e9ecef;
-    }
-
-    .confirm-amount .amount {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #28a745;
-        margin: 0;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .admin-page-content {
-            padding: 20px 15px;
-        }
-
-        .table-controls {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .filter-controls {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .search-box {
-            min-width: auto;
-        }
-
-        .action-buttons {
-            flex-direction: column;
-        }
-
-        .custom-table {
-            font-size: 12px;
-        }
-
-        .custom-table thead th,
-        .custom-table tbody td {
-            padding: 15px 10px;
-        }
-
-        .user-info {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
-        }
     }
 </style>
 @endsection
@@ -557,7 +432,7 @@
                     </div>
                     <div class="flex-grow-1">
                         <div class="stat-number">{{ $totalRequests }}</div>
-                        <div class="stat-label">Total Permintaan</div>
+                        <div class="stat-label">Total Transaksi</div>
                     </div>
                 </div>
             </div>
@@ -569,8 +444,8 @@
                         <i class="fas fa-coins"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="stat-number">{{ number_format($totalAmount / 1000, 0) }}K</div>
-                        <div class="stat-label">Total Nominal</div>
+                        <div class="stat-number">Rp {{ number_format($totalAmount / 1000, 0) }}K</div>
+                        <div class="stat-label">Total Nominal Disetujui</div>
                     </div>
                 </div>
             </div>
@@ -582,7 +457,7 @@
         <div class="card-header-custom">
             <h5>
                 <i class="fas fa-table"></i>
-                Permintaan Top Up Saldo
+                Laporan Top Up Saldo
             </h5>
             <a href="#" class="manual-topup-btn" data-bs-toggle="modal" data-bs-target="#manualTopupModal">
                 <i class="fas fa-plus"></i>
@@ -616,7 +491,7 @@
                             <th>Nominal</th>
                             <th>Tipe</th>
                             <th>Status</th>
-                            <th>Waktu Permintaan</th>
+                            <th>Waktu</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -633,10 +508,10 @@
                                     </div>
                                     <div class="user-details">
                                         <h6>{{ $request->user->name }}</h6>
-                                        <small>
-                                            <i class="fas fa-envelope"></i>
-                                            {{ $request->user->email }}
-                                        </small>
+                                        <small>{{ $request->user->email }}</small>
+                                        @if($request->type == 'manual' && $request->approvedBy)
+                                            <small class="admin-note">oleh: {{ $request->approvedBy->name }}</small>
+                                        @endif
                                     </div>
                                 </div>
                             </td>
@@ -673,29 +548,24 @@
                             </td>
                             <td>
                                 <div class="time-display">
-                                    {{ $request->created_at->format('d/m/Y H:i') }}
-                                </div>
-                                <div class="time-relative">
-                                    {{ $request->created_at->diffForHumans() }}
+                                    {{ $request->created_at->format('d M Y, H:i') }}
                                 </div>
                             </td>
                             <td>
                                 <div class="action-buttons">
                                     @if($request->status == 'pending')
                                         <button class="action-btn approve"
-                                                onclick="confirmApprove({{ $request->id }}, '{{ $request->user->name }}', {{ $request->amount }})"
+                                                onclick="confirmAction('approve', {{ $request->id }}, '{{ $request->user->name }}', {{ $request->amount }})"
                                                 title="Setujui Top Up">
                                             <i class="fas fa-check"></i>
                                         </button>
                                         <button class="action-btn reject"
-                                                onclick="confirmReject({{ $request->id }}, '{{ $request->user->name }}', {{ $request->amount }})"
+                                                onclick="confirmAction('reject', {{ $request->id }}, '{{ $request->user->name }}', {{ $request->amount }})"
                                                 title="Tolak Top Up">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     @else
-                                        <button class="action-btn view"
-                                                onclick="viewDetails({{ $request->id }})"
-                                                title="Lihat Detail">
+                                        <button class="action-btn view" title="Lihat Detail">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                     @endif
@@ -720,82 +590,32 @@
     </div>
 </div>
 
-<div class="modal fade" id="approveModal" tabindex="-1">
+<div class="modal fade" id="confirmationModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header confirm-approve">
-                <h5 class="modal-title">
-                    <i class="fas fa-check-circle"></i>
-                    Konfirmasi Persetujuan Top Up
-                </h5>
+            <div class="modal-header" id="confirmationModalHeader">
+                <h5 class="modal-title" id="confirmationModalTitle"></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <p class="mb-3">Apakah Anda yakin ingin menyetujui top up saldo untuk:</p>
-                <div class="text-center mb-3">
-                    <strong id="approveUserName"></strong>
+            <form id="confirmationForm" method="POST" style="display: inline;">
+                @csrf
+                <div class="modal-body">
+                    <p class="mb-3">Apakah Anda yakin ingin <strong id="actionText"></strong> top up untuk:</p>
+                    <div class="text-center mb-3"><strong id="userName"></strong></div>
+                    <div class="confirm-amount">
+                        <p class="amount" id="amountText"></p>
+                        <small class="text-muted">Nominal Top Up</small>
+                    </div>
+                    <div id="reasonGroup" class="mb-3" style="display: none;">
+                        <label for="rejectReason" class="form-label">Alasan Penolakan:</label>
+                        <textarea class="form-control" id="rejectReason" name="reason" rows="3" placeholder="Masukkan alasan penolakan..."></textarea>
+                    </div>
                 </div>
-                <div class="confirm-amount">
-                    <p class="amount" id="approveAmount"></p>
-                    <small class="text-muted">Nominal Top Up</small>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn" id="confirmButton"></button>
                 </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    Saldo akan langsung ditambahkan ke akun user setelah disetujui.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <form id="approveForm" method="POST" style="display: inline;">
-                    @csrf
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check"></i> Ya, Setujui
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="rejectModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header confirm-reject">
-                <h5 class="modal-title">
-                    <i class="fas fa-times-circle"></i>
-                    Konfirmasi Penolakan Top Up
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">Apakah Anda yakin ingin menolak top up saldo untuk:</p>
-                <div class="text-center mb-3">
-                    <strong id="rejectUserName"></strong>
-                </div>
-                <div class="confirm-amount">
-                    <p class="amount" id="rejectAmount" style="color: #dc3545;"></p>
-                    <small class="text-muted">Nominal Top Up</small>
-                </div>
-                <div class="mb-3">
-                    <label for="rejectReason" class="form-label">Alasan Penolakan:</label>
-                    <textarea class="form-control" id="rejectReason" name="reason" rows="3"
-                              placeholder="Masukkan alasan penolakan..." required></textarea>
-                </div>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    User akan mendapat notifikasi penolakan beserta alasan.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <form id="rejectForm" method="POST" style="display: inline;">
-                    @csrf
-                    <input type="hidden" name="reason" id="rejectReasonInput">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-times"></i> Ya, Tolak
-                    </button>
-                </form>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -803,11 +623,8 @@
 <div class="modal fade" id="manualTopupModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header confirm-approve">
-                <h5 class="modal-title">
-                    <i class="fas fa-plus-circle"></i>
-                    Top Up Manual
-                </h5>
+            <div class="modal-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Top Up Manual</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ route('admin.saldo.topup.manual') }}" method="POST">
@@ -816,7 +633,7 @@
                     <div class="mb-3">
                         <label for="user_id" class="form-label">Pilih User:</label>
                         <select class="form-select" name="user_id" required>
-                            <option value="">-- Pilih User --</option>
+                            <option value="" disabled selected>-- Pilih User --</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})</option>
                             @endforeach
@@ -824,20 +641,16 @@
                     </div>
                     <div class="mb-3">
                         <label for="amount" class="form-label">Nominal Top Up:</label>
-                        <input type="number" class="form-control" name="amount" min="10000" step="1000" required
-                               placeholder="Masukkan nominal (min. 10.000)">
+                        <input type="number" class="form-control" name="amount" min="10000" step="1000" required placeholder="Masukkan nominal (min. 10.000)">
                     </div>
                     <div class="mb-3">
                         <label for="note" class="form-label">Catatan (Opsional):</label>
-                        <textarea class="form-control" name="note" rows="3"
-                                  placeholder="Catatan untuk top up manual..."></textarea>
+                        <textarea class="form-control" name="note" rows="3" placeholder="Catatan untuk top up manual..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-plus"></i> Top Up Sekarang
-                    </button>
+                    <button type="submit" class="btn btn-info"><i class="fas fa-plus"></i> Top Up Sekarang</button>
                 </div>
             </form>
         </div>
@@ -847,138 +660,45 @@
 
 @section('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
-    const dateFilter = document.getElementById('dateFilter');
-    const table = document.getElementById('topupTable');
-    const rows = table.querySelectorAll('tbody tr');
+    const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
 
-    // Search functionality
-    searchInput.addEventListener('input', filterTable);
-    statusFilter.addEventListener('change', filterTable);
-    dateFilter.addEventListener('change', filterTable);
+    function confirmAction(action, requestId, userName, amount) {
+        const modalHeader = document.getElementById('confirmationModalHeader');
+        const modalTitle = document.getElementById('confirmationModalTitle');
+        const actionText = document.getElementById('actionText');
+        const amountText = document.getElementById('amountText');
+        const reasonGroup = document.getElementById('reasonGroup');
+        const confirmButton = document.getElementById('confirmButton');
+        const form = document.getElementById('confirmationForm');
 
-    function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const selectedStatus = statusFilter.value.toLowerCase();
-        const selectedDate = dateFilter.value;
+        document.getElementById('userName').textContent = userName;
+        amountText.textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
+        form.action = `/admin/saldo/topup/${requestId}/${action}`;
 
-        rows.forEach(row => {
-            if (row.querySelector('.empty-state')) return;
-
-            const userName = row.querySelector('.user-details h6').textContent.toLowerCase();
-            const userEmail = row.querySelector('.user-details small').textContent.toLowerCase();
-            const amount = row.querySelector('.amount-display').textContent.toLowerCase();
-            const status = row.getAttribute('data-status');
-            const rowDate = row.getAttribute('data-date');
-
-            const matchesSearch = userName.includes(searchTerm) ||
-                                userEmail.includes(searchTerm) ||
-                                amount.includes(searchTerm);
-            const matchesDate = selectedDate === '' || rowDate === selectedDate;
-
-            if (matchesSearch && status.includes(selectedStatus) && matchesDate) {
-                row.style.display = '';
-                row.style.animation = 'none';
-                setTimeout(() => {
-                    row.style.animation = 'fadeIn 0.3s ease';
-                }, 10);
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    }
-
-    // Add CSS animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        if (action === 'approve') {
+            modalHeader.className = 'modal-header';
+            modalHeader.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            modalHeader.style.color = 'white';
+            modalTitle.innerHTML = '<i class="fas fa-check-circle"></i> Konfirmasi Persetujuan';
+            actionText.textContent = 'menyetujui';
+            reasonGroup.style.display = 'none';
+            document.getElementById('rejectReason').required = false;
+            confirmButton.className = 'btn btn-success';
+            confirmButton.innerHTML = '<i class="fas fa-check"></i> Ya, Setujui';
+        } else { // reject
+            modalHeader.className = 'modal-header';
+            modalHeader.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            modalHeader.style.color = 'white';
+            modalTitle.innerHTML = '<i class="fas fa-times-circle"></i> Konfirmasi Penolakan';
+            actionText.textContent = 'menolak';
+            reasonGroup.style.display = 'block';
+            document.getElementById('rejectReason').required = true;
+            document.getElementById('rejectReason').value = '';
+            confirmButton.className = 'btn btn-danger';
+            confirmButton.innerHTML = '<i class="fas fa-times"></i> Ya, Tolak';
         }
-    `;
-    document.head.appendChild(style);
 
-    // Auto-hide alerts
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(alert => {
-            if (window.bootstrap && bootstrap.Alert) {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }
-        });
-    }, 5000);
-
-    // Auto-refresh statistics every 30 seconds
-    setInterval(function() {
-        if (document.visibilityState === 'visible') {
-            fetch('/admin/saldo/topup/stats', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.querySelectorAll('.stat-number')[0].textContent = data.pending;
-                document.querySelectorAll('.stat-number')[1].textContent = data.approved;
-                document.querySelectorAll('.stat-number')[2].textContent = data.total;
-                document.querySelectorAll('.stat-number')[3].textContent = (data.totalAmount / 1000).toFixed(0) + 'K';
-            })
-            .catch(error => {
-                console.log('Auto-refresh error:', error);
-            });
-        }
-    }, 30000);
-});
-
-// Confirm approve function
-function confirmApprove(requestId, userName, amount) {
-    document.getElementById('approveUserName').textContent = userName;
-    document.getElementById('approveAmount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
-    document.getElementById('approveForm').action = `/admin/saldo/topup/${requestId}/approve`;
-
-    const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
-    approveModal.show();
-}
-
-// Confirm reject function
-function confirmReject(requestId, userName, amount) {
-    document.getElementById('rejectUserName').textContent = userName;
-    document.getElementById('rejectAmount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
-    document.getElementById('rejectForm').action = `/admin/saldo/topup/${requestId}/reject`;
-
-    // Reset reason textarea
-    document.getElementById('rejectReason').value = '';
-
-    const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
-    rejectModal.show();
-
-    // Handle form submission with reason
-    document.getElementById('rejectForm').onsubmit = function() {
-        const reason = document.getElementById('rejectReason').value;
-        document.getElementById('rejectReasonInput').value = reason;
-        return true;
-    };
-}
-
-// View details function
-function viewDetails(requestId) {
-    // You can implement this to show more details
-    window.location.href = `/admin/saldo/topup/${requestId}`;
-}
-
-// Format number input in manual topup
-document.addEventListener('DOMContentLoaded', function() {
-    const amountInput = document.querySelector('input[name="amount"]');
-    if (amountInput) {
-        amountInput.addEventListener('input', function() {
-            let value = this.value.replace(/\D/g, '');
-            if (value) {
-                this.value = parseInt(value);
-            }
-        });
+        confirmationModal.show();
     }
-});
 </script>
 @endsection
