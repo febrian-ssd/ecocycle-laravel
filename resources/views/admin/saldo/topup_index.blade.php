@@ -333,6 +333,26 @@
         font-size: 10px;
     }
 
+    .type-badge {
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .type-badge.manual {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+    }
+    .type-badge.request {
+        background: linear-gradient(135deg, #6f42c1 0%, #9c27b0 100%);
+        color: white;
+    }
+
     /* Action Buttons */
     .action-buttons {
         display: flex;
@@ -594,6 +614,7 @@
                             <th>ID</th>
                             <th>User</th>
                             <th>Nominal</th>
+                            <th>Tipe</th>
                             <th>Status</th>
                             <th>Waktu Permintaan</th>
                             <th>Aksi</th>
@@ -623,6 +644,17 @@
                                 <div class="amount-display">
                                     Rp {{ number_format($request->amount, 0, ',', '.') }}
                                 </div>
+                            </td>
+                            <td>
+                                @if($request->type == 'manual')
+                                    <span class="type-badge manual">
+                                        <i class="fas fa-user-shield"></i> Manual
+                                    </span>
+                                @else
+                                    <span class="type-badge request">
+                                        <i class="fas fa-mobile-alt"></i> Request
+                                    </span>
+                                @endif
                             </td>
                             <td>
                                 @if($request->status == 'pending')
@@ -672,7 +704,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="empty-state">
                                     <i class="fas fa-wallet"></i>
                                     <h4>Belum Ada Permintaan Top Up</h4>
@@ -688,7 +720,6 @@
     </div>
 </div>
 
-<!-- Approve Confirmation Modal -->
 <div class="modal fade" id="approveModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -726,7 +757,6 @@
     </div>
 </div>
 
-<!-- Reject Confirmation Modal -->
 <div class="modal fade" id="rejectModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -770,7 +800,6 @@
     </div>
 </div>
 
-<!-- Manual Top Up Modal -->
 <div class="modal fade" id="manualTopupModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -849,7 +878,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 amount.includes(searchTerm);
             const matchesDate = selectedDate === '' || rowDate === selectedDate;
 
-            if (matchesSearch && matchesStatus && matchesDate) {
+            if (matchesSearch && status.includes(selectedStatus) && matchesDate) {
                 row.style.display = '';
                 row.style.animation = 'none';
                 setTimeout(() => {
