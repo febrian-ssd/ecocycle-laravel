@@ -1,5 +1,5 @@
 <?php
-// app/Http/Middleware/RoleMiddleware.php
+// app/Http/Middleware/RoleMiddleware.php - CREATE NEW FILE
 
 namespace App\Http\Middleware;
 
@@ -19,8 +19,8 @@ class RoleMiddleware
         if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthenticated. Please login first.',
-                'error_code' => 'UNAUTHENTICATED'
+                'message' => 'Authentication required',
+                'data' => null
             ], 401);
         }
 
@@ -30,8 +30,8 @@ class RoleMiddleware
         if (!$user->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'Your account has been deactivated. Please contact support.',
-                'error_code' => 'ACCOUNT_DEACTIVATED'
+                'message' => 'Your account has been deactivated',
+                'data' => null
             ], 403);
         }
 
@@ -39,8 +39,8 @@ class RoleMiddleware
         if (!empty($roles) && !in_array($user->role, $roles)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to access this resource.',
-                'error_code' => 'INSUFFICIENT_PERMISSIONS',
+                'message' => 'You do not have permission to access this resource',
+                'data' => null,
                 'required_roles' => $roles,
                 'user_role' => $user->role
             ], 403);

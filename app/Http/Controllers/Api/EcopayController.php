@@ -1,160 +1,120 @@
 <?php
-// app/Http/Controllers/Api/EcopayController.php - FIXED VERSION
-
+// app/Http/Controllers/Api/EcopayController.php - COMPLETE UPDATE
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\TopupRequest;
+use App\Helpers\ApiResponse;
 
 class EcopayController extends Controller
 {
-    /**
-     * Get user wallet - FIXED VERSION
-     */
     public function getWallet(Request $request)
     {
         try {
             $user = $request->user();
-            return response()->json([
-                'success' => true,
-                'message' => 'Wallet data retrieved successfully',
-                'data' => [
-                    'balance_rp' => (float) ($user->balance_rp ?? 0),
-                    'balance_koin' => (int) ($user->balance_coins ?? 0),
-                    'balance_coins' => (int) ($user->balance_coins ?? 0), // alias
-                ]
-            ]);
+            return ApiResponse::success([
+                'balance_rp' => (float) ($user->balance_rp ?? 0),
+                'balance_koin' => (int) ($user->balance_coins ?? 0),
+                'balance_coins' => (int) ($user->balance_coins ?? 0),
+            ], 'Wallet data retrieved successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get wallet data',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::error('Failed to get wallet data: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Create topup request - FIXED VERSION
-     */
-    public function createTopupRequest(Request $request)
+    public function getAdminWallet(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'amount' => 'required|numeric|min:10000|max:10000000',
-                'payment_method' => 'nullable|string|max:100',
-                'user_note' => 'nullable|string|max:500',
-            ]);
-
             $user = $request->user();
 
-            // Check if table exists, if not create it
-            if (!Schema::hasTable('topup_requests')) {
-                Log::error('TopupRequest table missing - creating basic structure');
-                Schema::create('topup_requests', function ($table) {
-                    $table->id();
-                    $table->foreignId('user_id')->constrained()->onDelete('cascade');
-                    $table->decimal('amount', 15, 2);
-                    $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-                    $table->enum('type', ['manual', 'request'])->default('request');
-                    $table->string('payment_method')->nullable();
-                    $table->text('user_note')->nullable();
-                    $table->text('admin_note')->nullable();
-                    $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
-                    $table->timestamp('approved_at')->nullable();
-                    $table->timestamps();
-                });
-            }
+            // Admin wallet overview with additional stats
+            $totalUsers = User::where('role', 'user')->count();
+            $totalBalance = User::sum('balance_rp');
+            $totalCoins = User::sum('balance_coins');
 
+            return ApiResponse::success([
+                'admin_balance_rp' => (float) ($user->balance_rp ?? 0),
+                'admin_balance_coins' => (int) ($user->balance_coins ?? 0),
+                'total_users' => $totalUsers,
+                'total_system_balance' => (float) $totalBalance,
+                'total_system_coins' => (int) $totalCoins,
+            ], 'Admin wallet overview retrieved successfully');
+        } catch (\Exception $e) {
+            return ApiResponse::error('Failed to get admin wallet data: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function createTopupRequest(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:10000|max:10000000',
+            'payment_method' => 'nullable|string|max:100',
+            'user_note' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponse::validationError($validator->errors());
+        }
+
+        try {
             DB::beginTransaction();
 
             $topupRequest = TopupRequest::create([
-                'user_id' => $user->id,
-                'amount' => $validated['amount'],
+                'user_id' => $request->user()->id,
+                'amount' => $request->amount,
                 'status' => 'pending',
                 'type' => 'request',
-                'payment_method' => $validated['payment_method'] ?? 'transfer_bank',
-                'user_note' => $validated['user_note'] ?? '',
+                'payment_method' => $request->payment_method ?? 'transfer_bank',
+                'user_note' => $request->user_note ?? '',
             ]);
 
             DB::commit();
 
-            Log::info("Topup request created: ID {$topupRequest->id}, Amount {$validated['amount']}, User {$user->id}");
+            return ApiResponse::success([
+                'request_id' => $topupRequest->id,
+                'amount' => (float) $topupRequest->amount,
+                'status' => $topupRequest->status,
+                'created_at' => $topupRequest->created_at,
+            ], 'Topup request created successfully', 201);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Permintaan top up berhasil dibuat. Silakan tunggu konfirmasi admin.',
-                'data' => [
-                    'request_id' => $topupRequest->id,
-                    'amount' => (float) $topupRequest->amount,
-                    'status' => $topupRequest->status,
-                    'created_at' => $topupRequest->created_at,
-                    'formatted_amount' => 'Rp ' . number_format((float) $topupRequest->amount, 0, ',', '.'),
-                ]
-            ], 201);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data tidak valid',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Topup request creation failed', [
-                'user_id' => $request->user()->id ?? 'unknown',
-                'amount' => $request->input('amount'),
-                'error' => $e->getMessage()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal membuat permintaan top up.',
-                'error_code' => 'TOPUP_REQUEST_FAILED'
-            ], 500);
+            return ApiResponse::error('Failed to create topup request: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Transfer saldo - FIXED VERSION
-     */
     public function transfer(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'email' => 'required|email|max:255',
-                'amount' => 'required|numeric|min:1000',
-                'description' => 'nullable|string|max:255',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+            'amount' => 'required|numeric|min:1000',
+            'description' => 'nullable|string|max:255',
+        ]);
 
+        if ($validator->fails()) {
+            return ApiResponse::validationError($validator->errors());
+        }
+
+        try {
             $user = $request->user();
-            $amount = (float) $validated['amount'];
-            $recipientEmail = $validated['email'];
+            $amount = (float) $request->amount;
 
             if (($user->balance_rp ?? 0) < $amount) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Saldo Anda tidak mencukupi.'
-                ], 422);
+                return ApiResponse::error('Insufficient balance', 422);
             }
 
-            $recipient = User::where('email', $recipientEmail)->first();
+            $recipient = User::where('email', $request->email)->first();
             if (!$recipient) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Email penerima tidak terdaftar.'
-                ], 404);
+                return ApiResponse::error('Recipient email not found', 404);
             }
 
             if ($recipient->id === $user->id) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Anda tidak dapat transfer ke diri sendiri.'
-                ], 422);
+                return ApiResponse::error('Cannot transfer to yourself', 422);
             }
 
             DB::beginTransaction();
@@ -166,74 +126,47 @@ class EcopayController extends Controller
                 'user_id' => $user->id,
                 'type' => 'transfer_out',
                 'amount_rp' => -$amount,
-                'description' => "Transfer ke {$recipient->name}"
+                'description' => "Transfer to {$recipient->name}"
             ]);
 
             Transaction::create([
                 'user_id' => $recipient->id,
                 'type' => 'transfer_in',
                 'amount_rp' => $amount,
-                'description' => "Transfer dari {$user->name}"
+                'description' => "Transfer from {$user->name}"
             ]);
 
             DB::commit();
 
-            Log::info("Transfer successful", [
-                'from_user' => $user->id,
-                'to_user' => $recipient->id,
-                'amount' => $amount
-            ]);
+            return ApiResponse::success([
+                'amount_transferred' => $amount,
+                'recipient_name' => $recipient->name,
+                'new_balance_rp' => (float) $user->fresh()->balance_rp,
+            ], 'Transfer successful');
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Transfer berhasil!',
-                'data' => [
-                    'amount_transferred' => $amount,
-                    'formatted_amount' => 'Rp ' . number_format($amount, 0, ',', '.'),
-                    'recipient_name' => $recipient->name,
-                    'new_balance_rp' => (float) $user->fresh()->balance_rp,
-                    'formatted_balance' => 'Rp ' . number_format((float) $user->fresh()->balance_rp, 0, ',', '.'),
-                ]
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data tidak valid',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Transfer failed', [
-                'user_id' => $request->user()->id,
-                'error' => $e->getMessage()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal melakukan transfer.'
-            ], 500);
+            return ApiResponse::error('Transfer failed: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Exchange coins - FIXED VERSION
-     */
     public function exchangeCoins(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'coin_amount' => 'required|integer|min:100|max:50000',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'coin_amount' => 'required|integer|min:100|max:50000',
+        ]);
 
+        if ($validator->fails()) {
+            return ApiResponse::validationError($validator->errors());
+        }
+
+        try {
             $user = $request->user();
-            $coinAmount = $validated['coin_amount'];
-            $rupiahAmount = $coinAmount * 10; // 1 koin = Rp 10
+            $coinAmount = $request->coin_amount;
+            $rupiahAmount = $coinAmount * 10;
 
             if ($user->balance_coins < $coinAmount) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Koin tidak mencukupi untuk ditukar.'
-                ], 422);
+                return ApiResponse::error('Insufficient coins', 422);
             }
 
             DB::beginTransaction();
@@ -246,89 +179,53 @@ class EcopayController extends Controller
                 'type' => 'coin_exchange_to_rp',
                 'amount_rp' => $rupiahAmount,
                 'amount_coins' => -$coinAmount,
-                'description' => "Tukar {$coinAmount} koin menjadi " . number_format($rupiahAmount, 0, ',', '.'),
+                'description' => "Exchange {$coinAmount} coins to Rp " . number_format($rupiahAmount, 0, ',', '.'),
             ]);
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Penukaran koin berhasil!',
-                'data' => [
-                    'coins_exchanged' => $coinAmount,
-                    'rupiah_received' => $rupiahAmount,
-                    'formatted_rupiah' => 'Rp ' . number_format($rupiahAmount, 0, ',', '.'),
-                    'new_balance_coins' => $user->fresh()->balance_coins,
-                    'new_balance_rp' => $user->fresh()->balance_rp,
-                ]
-            ]);
+            return ApiResponse::success([
+                'coins_exchanged' => $coinAmount,
+                'rupiah_received' => $rupiahAmount,
+                'new_balance_coins' => $user->fresh()->balance_coins,
+                'new_balance_rp' => $user->fresh()->balance_rp,
+            ], 'Coin exchange successful');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menukar koin.',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::error('Coin exchange failed: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Get user transactions - FIXED VERSION
-     */
     public function getTransactions(Request $request)
     {
         try {
             $user = $request->user();
-
             $transactions = Transaction::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->limit(50)
                 ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => $transactions->map(function ($transaction) {
-                    return [
-                        'id' => $transaction->id,
-                        'type' => $transaction->type,
-                        'type_label' => $transaction->type_label,
-                        'amount_rp' => (float) ($transaction->amount_rp ?? 0),
-                        'amount_coins' => (int) ($transaction->amount_coins ?? 0),
-                        'description' => $transaction->description,
-                        'created_at' => $transaction->created_at,
-                        'type_display_name' => $transaction->type_label,
-                        'is_income' => $transaction->is_income,
-                        'is_expense' => !$transaction->is_income,
-                    ];
-                })
-            ]);
+            return ApiResponse::success($transactions->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'type' => $transaction->type,
+                    'amount_rp' => (float) ($transaction->amount_rp ?? 0),
+                    'amount_coins' => (int) ($transaction->amount_coins ?? 0),
+                    'description' => $transaction->description,
+                    'created_at' => $transaction->created_at,
+                ];
+            }), 'Transactions retrieved successfully');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil data transaksi',
-                'data' => []
-            ], 500);
+            return ApiResponse::error('Failed to get transactions: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Get user topup requests - FIXED VERSION
-     */
     public function getTopupRequests(Request $request)
     {
         try {
             $user = $request->user();
-
-            if (!Schema::hasTable('topup_requests')) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                    'message' => 'Belum ada permintaan top up'
-                ]);
-            }
-
             $requests = TopupRequest::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->limit(20)
@@ -337,39 +234,17 @@ class EcopayController extends Controller
                     return [
                         'id' => $request->id,
                         'amount' => (float) $request->amount,
-                        'formatted_amount' => 'Rp ' . number_format((float) $request->amount, 0, ',', '.'),
                         'status' => $request->status,
-                        'status_label' => $this->getStatusLabel($request->status),
                         'payment_method' => $request->payment_method,
                         'user_note' => $request->user_note,
                         'admin_note' => $request->admin_note,
                         'created_at' => $request->created_at,
-                        'approved_at' => $request->approved_at,
-                        'formatted_date' => $request->created_at->format('d M Y H:i'),
                     ];
                 });
 
-            return response()->json(['success' => true, 'data' => $requests]);
+            return ApiResponse::success($requests, 'Topup requests retrieved successfully');
         } catch (\Exception $e) {
-            Log::error('Get topup requests failed', [
-                'user_id' => $request->user()->id,
-                'error' => $e->getMessage()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil data permintaan top up',
-                'data' => []
-            ], 500);
+            return ApiResponse::error('Failed to get topup requests: ' . $e->getMessage(), 500);
         }
-    }
-
-    private function getStatusLabel($status)
-    {
-        $labels = [
-            'pending' => 'Menunggu Konfirmasi',
-            'approved' => 'Disetujui',
-            'rejected' => 'Ditolak'
-        ];
-        return $labels[$status] ?? 'Unknown';
     }
 }

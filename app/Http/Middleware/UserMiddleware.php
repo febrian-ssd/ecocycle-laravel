@@ -1,11 +1,12 @@
 <?php
+// app/Http/Middleware/UserMiddleware.php - CREATE NEW FILE
+
 namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\User;
 
 class UserMiddleware
 {
@@ -17,8 +18,8 @@ class UserMiddleware
         if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Authentication required.',
-                'error_code' => 'UNAUTHENTICATED'
+                'message' => 'Authentication required',
+                'data' => null
             ], 401);
         }
 
@@ -28,8 +29,8 @@ class UserMiddleware
         if (!$user->isUser()) {
             return response()->json([
                 'success' => false,
-                'message' => 'User access only. Admin users should use admin routes.',
-                'error_code' => 'USER_ACCESS_ONLY',
+                'message' => 'User access only. Admin users should use admin routes',
+                'data' => null,
                 'user_role' => $user->role
             ], 403);
         }
@@ -38,8 +39,8 @@ class UserMiddleware
         if (!$user->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'Your account has been deactivated.',
-                'error_code' => 'ACCOUNT_DEACTIVATED'
+                'message' => 'Your account has been deactivated',
+                'data' => null
             ], 403);
         }
 

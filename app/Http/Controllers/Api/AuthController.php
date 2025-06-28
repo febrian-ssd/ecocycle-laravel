@@ -1,6 +1,5 @@
 <?php
-// app/Http/Controllers/Api/AuthController.php - Enhanced with Role Management
-
+// app/Http/Controllers/Api/AuthController.php - COMPLETE UPDATE
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -8,14 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use App\Models\User;
+use App\Helpers\ApiResponse;
 
 class AuthController extends Controller
 {
-    /**
-     * Register a new user
-     */
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -26,11 +22,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return ApiResponse::validationError($validator->errors());
         }
 
         try {
@@ -38,47 +30,33 @@ class AuthController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => $request->role ?? User::ROLE_USER, // Default to user role
+                'role' => $request->role ?? User::ROLE_USER,
                 'balance_rp' => 0,
                 'balance_coins' => 0,
                 'is_active' => true,
             ]);
 
-            // Create token with role information
             $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Registration successful',
-                'data' => [
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->role,
-                        'role_display' => $user->getRoleDisplayName(),
-                        'balance_rp' => $user->balance_rp,
-                        'balance_coins' => $user->balance_coins,
-                        'isAdmin' => $user->isAdmin(),
-                        'is_user' => $user->isUser(),
-                    ],
-                    'access_token' => $token,
-                    'token_type' => 'Bearer',
-                ]
-            ], 201);
+            return ApiResponse::success([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'balance_rp' => $user->balance_rp,
+                    'balance_coins' => $user->balance_coins,
+                    'is_admin' => $user->isAdmin(),
+                ],
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+            ], 'Registration successful', 201);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Registration failed',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::error('Registration failed: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Login user
-     */
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -87,194 +65,107 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return ApiResponse::validationError($validator->errors());
         }
 
         try {
-            $credentials = $request->only('email', 'password');
-
-            if (!Auth::attempt($credentials)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid credentials',
-                    'error_code' => 'INVALID_CREDENTIALS'
-                ], 401);
+            if (!Auth::attempt($request->only('email', 'password'))) {
+                return ApiResponse::error('Invalid credentials', 401);
             }
 
             $user = Auth::user();
 
-            // Check if account is active
             if (!$user->is_active) {
                 Auth::logout();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Your account has been deactivated. Please contact support.',
-                    'error_code' => 'ACCOUNT_DEACTIVATED'
-                ], 403);
+                return ApiResponse::error('Account deactivated', 403);
             }
 
-            // Create token with role-based abilities
-            $abilities = [$user->role];
-            if ($user->isAdmin()) {
-                $abilities[] = 'admin:access';
-                $abilities[] = 'user:manage';
-            } else {
-                $abilities[] = 'user:access';
-            }
+            $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-            $token = $user->createToken('auth_token', $abilities)->plainTextToken;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Login successful',
-                'data' => [
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->role,
-                        'role_display' => $user->getRoleDisplayName(),
-                        'balance_rp' => $user->balance_rp,
-                        'balance_coins' => $user->balance_coins,
-                        'isAdmin' => $user->isAdmin(),
-                        'is_user' => $user->isUser(),
-                    ],
-                    'access_token' => $token,
-                    'token_type' => 'Bearer',
-                    'abilities' => $abilities,
-                ]
-            ]);
+            return ApiResponse::success([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'balance_rp' => $user->balance_rp,
+                    'balance_coins' => $user->balance_coins,
+                    'is_admin' => $user->isAdmin(),
+                ],
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+            ], 'Login successful');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Login failed',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::error('Login failed: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Get authenticated user info
-     */
     public function user(Request $request)
     {
         try {
             $user = $request->user();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->role,
-                        'role_display' => $user->getRoleDisplayName(),
-                        'balance_rp' => $user->balance_rp,
-                        'balance_coins' => $user->balance_coins,
-                        'isAdmin' => $user->isAdmin(),
-                        'is_user' => $user->isUser(),
-                        'is_active' => $user->is_active,
-                    ]
-                ]
-            ]);
-
+            return ApiResponse::success([
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'balance_rp' => $user->balance_rp,
+                'balance_coins' => $user->balance_coins,
+                'is_admin' => $user->isAdmin(),
+                'is_active' => $user->is_active,
+            ], 'User data retrieved successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get user data',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::error('Failed to get user data: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Logout user
-     */
     public function logout(Request $request)
     {
         try {
-            // Revoke current token
             $request->user()->currentAccessToken()->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Logout successful'
-            ]);
-
+            return ApiResponse::success(null, 'Logout successful');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Logout failed',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::error('Logout failed: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Logout from all devices
-     */
-    public function logoutAll(Request $request)
+    public function updateProfile(Request $request)
     {
-        try {
-            // Revoke all tokens for the user
-            $request->user()->tokens()->delete();
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:users,email,' . $request->user()->id,
+            'password' => 'sometimes|string|min:6|confirmed',
+        ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Logged out from all devices successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Logout from all devices failed',
-                'error' => $e->getMessage()
-            ], 500);
+        if ($validator->fails()) {
+            return ApiResponse::validationError($validator->errors());
         }
-    }
 
-    /**
-     * Check token validity and permissions
-     */
-    public function checkToken(Request $request)
-    {
         try {
             $user = $request->user();
-            $token = $request->user()->currentAccessToken();
+            $data = $request->only('name', 'email');
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'valid' => true,
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->role,
-                        'isAdmin' => $user->isAdmin(),
-                        'is_user' => $user->isUser(),
-                    ],
-                    'token' => [
-                        'name' => $token->name,
-                        'abilities' => $token->abilities,
-                        'created_at' => $token->created_at,
-                        'last_used_at' => $token->last_used_at,
-                    ]
-                ]
-            ]);
+            if ($request->filled('password')) {
+                $data['password'] = Hash::make($request->password);
+            }
+
+            $user->update($data);
+
+            return ApiResponse::success([
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ], 'Profile updated successfully');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Token validation failed',
-                'error' => $e->getMessage()
-            ], 401);
+            return ApiResponse::error('Profile update failed: ' . $e->getMessage(), 500);
         }
+    }
+
+    public function updateAdminProfile(Request $request)
+    {
+        return $this->updateProfile($request);
     }
 }

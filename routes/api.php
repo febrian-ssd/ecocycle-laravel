@@ -1,6 +1,5 @@
 <?php
-// routes/api.php - FIXED VERSION
-
+// routes/api.php - COMPLETE UPDATE
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -10,17 +9,12 @@ use App\Http\Controllers\Api\EcopayController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\AdminController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
-
 // ========================================================================
 // HEALTH CHECK ROUTE
 // ========================================================================
 Route::get('health', function () {
     return response()->json([
+        'success' => true,
         'status' => 'ok',
         'timestamp' => now(),
         'version' => '1.0.0'
@@ -28,22 +22,20 @@ Route::get('health', function () {
 });
 
 // ========================================================================
-// RUTE PUBLIK (Tidak Perlu Login)
+// PUBLIC ROUTES
 // ========================================================================
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
-
-// Rute untuk menampilkan lokasi dropbox di peta (bisa diakses publik)
 Route::get('dropboxes', [DropboxController::class, 'index']);
 Route::get('dropboxes/nearby', [DropboxController::class, 'getNearby']);
 Route::get('dropboxes/{id}', [DropboxController::class, 'show']);
 
 // ========================================================================
-// RUTE YANG DILINDUNGI (Wajib Login)
+// PROTECTED ROUTES
 // ========================================================================
 Route::middleware(['auth:sanctum'])->group(function () {
 
-    // --- Rute Autentikasi ---
+    // --- Authentication Routes ---
     Route::prefix('auth')->group(function () {
         Route::get('user', [AuthController::class, 'user']);
         Route::post('logout', [AuthController::class, 'logout']);
@@ -51,26 +43,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('check-token', [AuthController::class, 'checkToken']);
     });
 
-    // --- Rute Khusus untuk Role 'user' ---
+    // --- User Routes ---
     Route::middleware(['role:user'])->prefix('user')->group(function () {
-        // Profile Management
+        // Profile
         Route::get('profile', [HistoryController::class, 'getUserProfile']);
-        Route::put('profile', function(Request $request) {
-            $user = $request->user();
-            $validated = $request->validate([
-                'name' => 'sometimes|string|max:255',
-                'password' => 'sometimes|string|min:6|confirmed',
-            ]);
-            if (isset($validated['password'])) {
-                $validated['password'] = \Illuminate\Support\Facades\Hash::make($validated['password']);
-            }
-            $user->update($validated);
-            return response()->json([
-                'success' => true,
-                'message' => 'Profile updated successfully',
-                'data' => $user
-            ]);
-        });
+        Route::put('profile', [AuthController::class, 'updateProfile']);
 
         // Wallet & Transactions
         Route::get('wallet', [EcopayController::class, 'getWallet']);
@@ -91,17 +68,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('history', [HistoryController::class, 'getHistory']);
     });
 
-    // --- Rute Khusus untuk Role 'admin' ---
+    // --- Admin Routes ---
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
         Route::get('dashboard', [AdminController::class, 'dashboard']);
+        Route::get('wallet-overview', [EcopayController::class, 'getAdminWallet']);
         Route::get('users', [AdminController::class, 'getUsers']);
         Route::get('dropboxes', [AdminController::class, 'getDropboxes']);
         Route::get('topup-requests', [AdminController::class, 'getTopupRequests']);
         Route::get('transactions', [AdminController::class, 'getAllTransactions']);
+        Route::put('profile', [AuthController::class, 'updateAdminProfile']);
     });
 });
 
-// Fallback jika endpoint tidak ditemukan
+// Fallback
 Route::fallback(function () {
     return response()->json([
         'success' => false,
