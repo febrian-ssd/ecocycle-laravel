@@ -590,7 +590,7 @@
     </div>
 </div>
 
-{{-- MODAL KONFIRMASI - DIPERBAIKI --}}
+{{-- MODAL KONFIRMASI --}}
 <div class="modal fade" id="confirmationModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -600,7 +600,7 @@
             </div>
             <form id="confirmationForm" method="POST" style="display: inline;">
                 @csrf
-                @method('PUT') {{-- PERUBAHAN PENTING: TAMBAHKAN METHOD SPOOFING --}}
+                @method('PUT')
                 <div class="modal-body">
                     <p class="mb-3">Apakah Anda yakin ingin <strong id="actionText"></strong> top up untuk:</p>
                     <div class="text-center mb-3"><strong id="userName"></strong></div>
@@ -622,7 +622,7 @@
     </div>
 </div>
 
-{{-- MODAL TOP UP MANUAL - TIDAK PERLU PERUBAHAN --}}
+{{-- MODAL TOP UP MANUAL --}}
 <div class="modal fade" id="manualTopupModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -632,7 +632,6 @@
             </div>
             <form action="{{ route('admin.saldo.topup.manual') }}" method="POST">
                 @csrf
-                {{-- Tidak perlu @method karena route manual topup menggunakan POST --}}
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="user_id" class="form-label">Pilih User:</label>
@@ -678,11 +677,13 @@
         document.getElementById('userName').textContent = userName;
         amountText.textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
 
-        // PERUBAHAN PENTING: Gunakan route Laravel untuk membentuk URL yang benar
+        // --- KODE YANG DIPERBAIKI ---
         if (action === 'approve') {
-            form.action = "{{ route('admin.saldo.topup.approve', '') }}/" + requestId;
+            let url = "{{ route('admin.saldo.topup.approve', ['topupRequest' => 'PLACEHOLDER']) }}";
+            form.action = url.replace('PLACEHOLDER', requestId);
         } else {
-            form.action = "{{ route('admin.saldo.topup.reject', '') }}/" + requestId;
+            let url = "{{ route('admin.saldo.topup.reject', ['topupRequest' => 'PLACEHOLDER']) }}";
+            form.action = url.replace('PLACEHOLDER', requestId);
         }
 
         if (action === 'approve') {
