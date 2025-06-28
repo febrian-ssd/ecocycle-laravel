@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'EcoCycle - Sistem Pengelolaan Sampah Pintar')</title>
-
+    <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link rel="dns-prefetch" href="//maps.googleapis.com">
 
