@@ -28,7 +28,6 @@ class SaldoController extends Controller
             $totalAmount = $topupRequests->where('status', 'approved')->sum('amount');
 
             // Ambil semua user non-admin untuk dropdown manual topup
-            // PERBAIKAN: Menggunakan 'role' bukan 'is_admin'
             $users = User::where('role', 'user')->orderBy('name')->get();
 
             return view('admin.saldo.topup_index', compact(
