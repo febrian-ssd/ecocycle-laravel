@@ -1,90 +1,65 @@
 <?php
+// routes/web.php
+
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\DropboxController;
 use App\Http\Controllers\Admin\HistoryController;
 use App\Http\Controllers\Admin\SaldoController;
 
-/*
-|--------------------------------------------------------------------------
-| Authentication Routes
-|--------------------------------------------------------------------------
-*/
-Auth::routes();
-
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
+// Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-/*
-|--------------------------------------------------------------------------
-| Protected Routes - Authenticated Users
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->group(function () {
-    // User home page
-    Route::get('/home', [HomeController::class, 'index'])->name('home');
-});
+// Authentication routes (jika menggunakan Laravel UI)
+Auth::routes();
 
-/*
-|--------------------------------------------------------------------------
-| Admin Routes - Admin Only
-|--------------------------------------------------------------------------
-*/
+// Admin routes - protected by auth and admin middleware
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Admin Dashboard Redirect
-    Route::redirect('/', '/admin/users');
+
+    // Dashboard
+    Route::get('/dashboard', function () {
+        return view('admin.dashboard');
+    })->name('dashboard');
 
     // User Management Routes
-    Route::prefix('users')->name('users.')->group(function () {
-        Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
-        Route::put('/{user}', [UserController::class, 'update'])->name('update');
-        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-    });
+    Route::resource('users', UserController::class)->names([
+        'index' => 'users.index',
+        'create' => 'users.create',
+        'store' => 'users.store',
+        'show' => 'users.show',
+        'edit' => 'users.edit',
+        'update' => 'users.update',
+        'destroy' => 'users.destroy'
+    ]);
 
     // Dropbox Management Routes
-    Route::prefix('dropboxes')->name('dropboxes.')->group(function () {
-        Route::get('/', [DropboxController::class, 'index'])->name('index');
-        Route::get('/create', [DropboxController::class, 'create'])->name('create');
-        Route::post('/', [DropboxController::class, 'store'])->name('store');
-        Route::get('/{dropbox}/edit', [DropboxController::class, 'edit'])->name('edit');
-        Route::put('/{dropbox}', [DropboxController::class, 'update'])->name('update');
-        Route::delete('/{dropbox}', [DropboxController::class, 'destroy'])->name('destroy');
-        Route::get('/{dropbox}', [DropboxController::class, 'show'])->name('show');
-    });
+    Route::resource('dropboxes', DropboxController::class)->names([
+        'index' => 'dropboxes.index',
+        'create' => 'dropboxes.create',
+        'store' => 'dropboxes.store',
+        'show' => 'dropboxes.show',
+        'edit' => 'dropboxes.edit',
+        'update' => 'dropboxes.update',
+        'destroy' => 'dropboxes.destroy'
+    ]);
 
-    // History Management Routes
+    // History Routes
     Route::prefix('history')->name('history.')->group(function () {
         Route::get('/', [HistoryController::class, 'index'])->name('index');
-        Route::get('/export', [HistoryController::class, 'export'])->name('export');
-        Route::get('/stats', [HistoryController::class, 'getStats'])->name('stats');
-        Route::get('/chart-data', [HistoryController::class, 'getChartData'])->name('chart-data');
         Route::get('/{history}', [HistoryController::class, 'show'])->name('show');
         Route::delete('/{history}', [HistoryController::class, 'destroy'])->name('destroy');
+        Route::get('/export/csv', [HistoryController::class, 'export'])->name('export');
+        Route::get('/stats/data', [HistoryController::class, 'getStats'])->name('stats');
+        Route::get('/chart/data', [HistoryController::class, 'getChartData'])->name('chart');
     });
 
-    // Saldo Management Routes - LENGKAP
+    // Saldo/Topup Management Routes
     Route::prefix('saldo')->name('saldo.')->group(function () {
-        Route::prefix('topup')->name('topup.')->group(function () {
-            // GET routes
-            Route::get('/', [SaldoController::class, 'topupIndex'])->name('index');
-            Route::get('/stats', [SaldoController::class, 'getStats'])->name('stats');
-            Route::get('/export', [SaldoController::class, 'export'])->name('export');
-            Route::get('/{topupRequest}', [SaldoController::class, 'show'])->name('show');
-
-            // POST routes
-            Route::post('/manual', [SaldoController::class, 'manualTopup'])->name('manual');
-            Route::post('/{topupRequest}/approve', [SaldoController::class, 'approveTopup'])->name('approve');
-            Route::post('/{topupRequest}/reject', [SaldoController::class, 'rejectTopup'])->name('reject');
-        });
-
-        // User History Route
-        Route::get('/user/{user}/history', [SaldoController::class, 'userHistory'])->name('user.history');
+        Route::get('/topup', [SaldoController::class, 'topupIndex'])->name('topup.index');
+        Route::get('/topup/{topupRequest}', [SaldoController::class, 'show'])->name('topup.show');
+        Route::put('/topup/{topupRequest}/approve', [SaldoController::class, 'approveTopup'])->name('topup.approve');
+        Route::put('/topup/{topupRequest}/reject', [SaldoController::class, 'rejectTopup'])->name('topup.reject');
+        Route::post('/topup/manual', [SaldoController::class, 'manualTopup'])->name('topup.manual');
     });
 });

@@ -14,8 +14,7 @@ class UserController extends Controller
     {
         $users = User::orderBy('created_at', 'desc')->get();
 
-        // Calculate statistics - PERBAIKAN: Gunakan kolom yang benar
-       // BARU
+        // Calculate statistics
         $adminCount = User::where('role', 'admin')->count();
 
         // Count online users - gunakan updated_at sebagai indikator aktivitas terakhir
@@ -30,73 +29,82 @@ class UserController extends Controller
         return view('admin.users.index', compact('users', 'adminCount', 'onlineUsers', 'offlineUsers'));
     }
 
+    public function create()
+    {
+        return view('admin.users.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'phone_number' => ['nullable', 'string'],
+            'address' => ['nullable', 'string'],
+            'role' => ['required', 'string', 'in:admin,user'],
+        ]);
+
+        // Mencegah semua admin dihapus
+        if ($request->role !== 'admin') {
+            $adminCount = User::where('role', 'admin')->count();
+            if ($adminCount <= 1 && User::where('id', $request->id)->where('role', 'admin')->exists()) {
+                return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
+            }
+        }
+
+        User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'phone_number' => $request->phone_number,
+            'address' => $request->address,
+            'role' => $request->role,
+        ]);
+
+        return redirect()->route('admin.users.index')->with('success', 'User berhasil ditambahkan.');
+    }
+
+    public function show(User $user)
+    {
+        return view('admin.users.show', compact('user'));
+    }
+
     public function edit(User $user)
     {
         return view('admin.users.edit', compact('user'));
     }
 
-   // app/Http/Controllers/Admin/UserController.php
+    public function update(Request $request, User $user)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'phone_number' => ['nullable', 'string'],
+            'address' => ['nullable', 'string'],
+            'role' => ['required', 'string', 'in:admin,user'],
+        ]);
 
-public function store(Request $request)
-{
-    $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-        'password' => ['required', 'string', 'min:8', 'confirmed'],
-        'phone_number' => ['nullable', 'string'],
-        'address' => ['nullable', 'string'],
-        'role' => ['required', 'string', 'in:admin,user'], // Perubahan di sini
-    ]);
-
-    // Mencegah semua admin dihapus
-    if ($request->role !== 'admin') {
-        $adminCount = User::where('role', 'admin')->count(); // Perubahan di sini
-        if ($adminCount <= 1 && User::where('id', $request->id)->where('role', 'admin')->exists()) {
-            return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
+        // Mencegah semua admin dihapus
+        if ($request->role !== 'admin') {
+            $adminCount = User::where('role', 'admin')->count();
+            $currentUserIsAdmin = $user->isAdmin();
+            if ($adminCount <= 1 && $currentUserIsAdmin) {
+                return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
+            }
         }
-    }
 
-    User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'phone_number' => $request->phone_number,
-        'address' => $request->address,
-        'role' => $request->role, // Perubahan di sini
-    ]);
-
-    return redirect()->route('admin.user.index')->with('success', 'User berhasil ditambahkan.');
-}
-
-public function update(Request $request, User $user)
-{
-    $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-        'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-        'phone_number' => ['nullable', 'string'],
-        'address' => ['nullable', 'string'],
-        'role' => ['required', 'string', 'in:admin,user'], // Perubahan di sini
-    ]);
-
-    // Mencegah semua admin dihapus
-    if ($request->role !== 'admin') {
-        $adminCount = User::where('role', 'admin')->count(); // Perubahan di sini
-        $currentUserIsAdmin = $user->isAdmin();
-        if ($adminCount <= 1 && $currentUserIsAdmin) {
-            return back()->withErrors(['role' => 'Tidak dapat mengubah peran admin terakhir.']);
+        $data = $request->only('name', 'email', 'phone_number', 'address', 'role');
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
         }
+
+        $user->update($data);
+
+        // ✅ PERBAIKAN: Gunakan route name yang konsisten
+        return redirect()->route('admin.users.index')->with('success', 'User berhasil diperbarui.');
     }
-
-    $data = $request->only('name', 'email', 'phone_number', 'address', 'role'); // Perubahan di sini
-    if ($request->filled('password')) {
-        $data['password'] = Hash::make($request->password);
-    }
-
-    $user->update($data);
-
-    return redirect()->route('admin.user.index')->with('success', 'User berhasil diperbarui.');
-}
 
     public function destroy(User $user)
     {
@@ -104,6 +112,15 @@ public function update(Request $request, User $user)
         if ($user->id === auth()->id()) {
             return redirect()->route('admin.users.index')
                            ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri!');
+        }
+
+        // Prevent deleting the last admin
+        if ($user->isAdmin()) {
+            $adminCount = User::where('role', 'admin')->count();
+            if ($adminCount <= 1) {
+                return redirect()->route('admin.users.index')
+                               ->with('error', 'Tidak dapat menghapus admin terakhir!');
+            }
         }
 
         try {
