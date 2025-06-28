@@ -1,5 +1,4 @@
 <?php
-// app/Models/User.php - Enhanced with Role Management
 
 namespace App\Models;
 
@@ -23,6 +22,8 @@ class User extends Authenticatable
         'balance_rp',
         'balance_coins',
         'is_active',
+        'phone_number',
+        'address',
     ];
 
     protected $hidden = [
@@ -132,5 +133,16 @@ class User extends Authenticatable
             return true;
         }
         return false;
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        $words = explode(' ', $this->name);
+        if (count($words) >= 2) {
+            return strtoupper($words[0][0] . $words[1][0]);
+        } else if (count($words) > 0) {
+            return strtoupper($words[0][0]);
+        }
+        return 'U';
     }
 }

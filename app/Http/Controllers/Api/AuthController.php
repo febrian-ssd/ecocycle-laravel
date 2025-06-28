@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Api/AuthController.php - COMPLETE UPDATE
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Helpers\ApiResponse;
 
@@ -38,6 +39,8 @@ class AuthController extends Controller
 
             $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
+            Log::info('User registered successfully', ['user_id' => $user->id, 'email' => $user->email]);
+
             return ApiResponse::success([
                 'user' => [
                     'id' => $user->id,
@@ -53,6 +56,7 @@ class AuthController extends Controller
             ], 'Registration successful', 201);
 
         } catch (\Exception $e) {
+            Log::error('Registration failed', ['error' => $e->getMessage(), 'email' => $request->email]);
             return ApiResponse::error('Registration failed: ' . $e->getMessage(), 500);
         }
     }
@@ -69,18 +73,39 @@ class AuthController extends Controller
         }
 
         try {
-            if (!Auth::attempt($request->only('email', 'password'))) {
+            Log::info('Login attempt', [
+                'email' => $request->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+
+            // Check if user exists
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                Log::warning('Login failed - user not found', ['email' => $request->email]);
                 return ApiResponse::error('Invalid credentials', 401);
             }
 
-            $user = Auth::user();
+            if (!Hash::check($request->password, $user->password)) {
+                Log::warning('Login failed - invalid password', ['email' => $request->email]);
+                return ApiResponse::error('Invalid credentials', 401);
+            }
 
             if (!$user->is_active) {
-                Auth::logout();
+                Log::warning('Login failed - account deactivated', ['email' => $request->email]);
                 return ApiResponse::error('Account deactivated', 403);
             }
 
+            // Login successful
+            Auth::login($user);
             $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+            Log::info('Login successful', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'role' => $user->role
+            ]);
 
             return ApiResponse::success([
                 'user' => [
@@ -88,8 +113,8 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role,
-                    'balance_rp' => $user->balance_rp,
-                    'balance_coins' => $user->balance_coins,
+                    'balance_rp' => (float) ($user->balance_rp ?? 0),
+                    'balance_coins' => (int) ($user->balance_coins ?? 0),
                     'is_admin' => $user->isAdmin(),
                 ],
                 'access_token' => $token,
@@ -97,6 +122,11 @@ class AuthController extends Controller
             ], 'Login successful');
 
         } catch (\Exception $e) {
+            Log::error('Login exception', [
+                'error' => $e->getMessage(),
+                'email' => $request->email,
+                'trace' => $e->getTraceAsString()
+            ]);
             return ApiResponse::error('Login failed: ' . $e->getMessage(), 500);
         }
     }
@@ -105,17 +135,25 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
+
+            if (!$user) {
+                return ApiResponse::error('User not authenticated', 401);
+            }
+
             return ApiResponse::success([
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'balance_rp' => $user->balance_rp,
-                'balance_coins' => $user->balance_coins,
+                'balance_rp' => (float) ($user->balance_rp ?? 0),
+                'balance_coins' => (int) ($user->balance_coins ?? 0),
                 'is_admin' => $user->isAdmin(),
                 'is_active' => $user->is_active,
+                'created_at' => $user->created_at,
             ], 'User data retrieved successfully');
+
         } catch (\Exception $e) {
+            Log::error('Get user failed', ['error' => $e->getMessage()]);
             return ApiResponse::error('Failed to get user data: ' . $e->getMessage(), 500);
         }
     }
@@ -123,9 +161,17 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         try {
-            $request->user()->currentAccessToken()->delete();
+            $user = $request->user();
+
+            if ($user) {
+                $request->user()->currentAccessToken()->delete();
+                Log::info('User logged out', ['user_id' => $user->id]);
+            }
+
             return ApiResponse::success(null, 'Logout successful');
+
         } catch (\Exception $e) {
+            Log::error('Logout failed', ['error' => $e->getMessage()]);
             return ApiResponse::error('Logout failed: ' . $e->getMessage(), 500);
         }
     }
@@ -152,6 +198,8 @@ class AuthController extends Controller
 
             $user->update($data);
 
+            Log::info('Profile updated', ['user_id' => $user->id]);
+
             return ApiResponse::success([
                 'id' => $user->id,
                 'name' => $user->name,
@@ -160,12 +208,17 @@ class AuthController extends Controller
             ], 'Profile updated successfully');
 
         } catch (\Exception $e) {
+            Log::error('Profile update failed', ['error' => $e->getMessage()]);
             return ApiResponse::error('Profile update failed: ' . $e->getMessage(), 500);
         }
     }
 
     public function updateAdminProfile(Request $request)
     {
+        if (!$request->user()->isAdmin()) {
+            return ApiResponse::error('Admin access required', 403);
+        }
+
         return $this->updateProfile($request);
     }
 }

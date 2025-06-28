@@ -1,5 +1,5 @@
 <?php
-// app/Helpers/ApiResponse.php - CREATE NEW FILE
+
 namespace App\Helpers;
 
 class ApiResponse
