@@ -1,11 +1,12 @@
 <?php
-// app/Http/Controllers/Api/EcopayController.php - COMPLETE UPDATE
+// app/Http/Controllers/Api/EcopayController.php - DIPERBAIKI: Transfer dengan error handling yang benar
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\TopupRequest;
@@ -32,7 +33,6 @@ class EcopayController extends Controller
         try {
             $user = $request->user();
 
-            // Admin wallet overview with additional stats
             $totalUsers = User::where('role', 'user')->count();
             $totalBalance = User::sum('balance_rp');
             $totalCoins = User::sum('balance_coins');
@@ -104,6 +104,9 @@ class EcopayController extends Controller
             $user = $request->user();
             $amount = (float) $request->amount;
 
+            // Refresh user data untuk memastikan balance terbaru
+            $user->refresh();
+
             if (($user->balance_rp ?? 0) < $amount) {
                 return ApiResponse::error('Insufficient balance', 422);
             }
@@ -117,35 +120,66 @@ class EcopayController extends Controller
                 return ApiResponse::error('Cannot transfer to yourself', 422);
             }
 
+            Log::info('Transfer initiated', [
+                'sender_id' => $user->id,
+                'recipient_id' => $recipient->id,
+                'amount' => $amount,
+                'sender_balance_before' => $user->balance_rp
+            ]);
+
             DB::beginTransaction();
 
-            $user->decrement('balance_rp', $amount);
-            $recipient->increment('balance_rp', $amount);
+            // PERBAIKAN: Update balance dengan cara yang lebih safe
+            $user->balance_rp = $user->balance_rp - $amount;
+            $user->save();
 
+            $recipient->balance_rp = $recipient->balance_rp + $amount;
+            $recipient->save();
+
+            // PERBAIKAN: Buat transaksi dengan type yang benar
             Transaction::create([
                 'user_id' => $user->id,
                 'type' => 'transfer_out',
                 'amount_rp' => -$amount,
-                'description' => "Transfer to {$recipient->name}"
+                'description' => $request->description ?? "Transfer to {$recipient->name}"
             ]);
 
             Transaction::create([
                 'user_id' => $recipient->id,
                 'type' => 'transfer_in',
                 'amount_rp' => $amount,
-                'description' => "Transfer from {$user->name}"
+                'description' => $request->description ?? "Transfer from {$user->name}"
             ]);
 
             DB::commit();
 
+            Log::info('Transfer completed successfully', [
+                'sender_id' => $user->id,
+                'recipient_id' => $recipient->id,
+                'amount' => $amount,
+                'sender_balance_after' => $user->balance_rp,
+                'recipient_balance_after' => $recipient->balance_rp
+            ]);
+
             return ApiResponse::success([
                 'amount_transferred' => $amount,
                 'recipient_name' => $recipient->name,
-                'new_balance_rp' => (float) $user->fresh()->balance_rp,
+                'recipient_email' => $recipient->email,
+                'new_balance_rp' => (float) $user->balance_rp,
+                'transaction_description' => $request->description ?? "Transfer to {$recipient->name}",
             ], 'Transfer successful');
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            Log::error('Transfer failed', [
+                'error' => $e->getMessage(),
+                'sender_id' => $user->id ?? null,
+                'recipient_email' => $request->email,
+                'amount' => $amount ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return ApiResponse::error('Transfer failed: ' . $e->getMessage(), 500);
         }
     }

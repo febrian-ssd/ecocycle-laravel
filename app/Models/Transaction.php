@@ -1,6 +1,5 @@
 <?php
-// app/Models/Transaction.php - CLEAN SINGLE FILE
-
+// app/Models/Transaction.php - DIPERBAIKI: Support semua transaction types
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +23,17 @@ class Transaction extends Model
         'amount_coins' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+    ];
+
+    // PERBAIKAN: Daftar lengkap transaction types yang didukung
+    public static $validTypes = [
+        'topup',
+        'manual_topup',
+        'coin_exchange_to_rp',
+        'scan_reward',
+        'transfer_out',
+        'transfer_in',  // Tambahan untuk transfer masuk
+        'exchange_coins',
     ];
 
     /**
@@ -58,7 +68,8 @@ class Transaction extends Model
     {
         return $query->where(function($q) {
             $q->where('amount_rp', '>', 0)
-              ->orWhere('amount_coins', '>', 0);
+              ->orWhere('amount_coins', '>', 0)
+              ->orWhereIn('type', ['topup', 'manual_topup', 'scan_reward', 'transfer_in']);
         });
     }
 
@@ -69,12 +80,13 @@ class Transaction extends Model
     {
         return $query->where(function($q) {
             $q->where('amount_rp', '<', 0)
-              ->orWhere('amount_coins', '<', 0);
+              ->orWhere('amount_coins', '<', 0)
+              ->orWhereIn('type', ['transfer_out', 'exchange_coins']);
         });
     }
 
     /**
-     * Accessor untuk format rupiah - FIXED TYPE ISSUE
+     * Accessor untuk format rupiah
      */
     public function getFormattedAmountRpAttribute()
     {
@@ -97,7 +109,7 @@ class Transaction extends Model
     }
 
     /**
-     * Get transaction type label
+     * Get transaction type label - DIPERBAIKI: Support semua types
      */
     public function getTypeLabelAttribute()
     {
@@ -108,19 +120,31 @@ class Transaction extends Model
             'scan_reward' => 'Reward Scan',
             'transfer_out' => 'Transfer Keluar',
             'transfer_in' => 'Transfer Masuk',
+            'exchange_coins' => 'Tukar Koin',
         ];
 
         return $labels[$this->type] ?? ucfirst(str_replace('_', ' ', $this->type));
     }
 
     /**
-     * Check if transaction is income
+     * Check if transaction is income - DIPERBAIKI: Logic yang lebih akurat
      */
     public function getIsIncomeAttribute()
     {
-        return in_array($this->type, ['topup', 'manual_topup', 'scan_reward', 'transfer_in']) ||
-               ($this->amount_rp && $this->amount_rp > 0) ||
-               ($this->amount_coins && $this->amount_coins > 0);
+        // Income transaction types
+        $incomeTypes = ['topup', 'manual_topup', 'scan_reward', 'transfer_in'];
+
+        if (in_array($this->type, $incomeTypes)) {
+            return true;
+        }
+
+        // Fallback: check amount
+        if (($this->amount_rp && $this->amount_rp > 0) ||
+            ($this->amount_coins && $this->amount_coins > 0)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -135,6 +159,7 @@ class Transaction extends Model
             'scan_reward' => 'fas fa-qrcode',
             'transfer_out' => 'fas fa-arrow-up',
             'transfer_in' => 'fas fa-arrow-down',
+            'exchange_coins' => 'fas fa-exchange-alt',
         ];
 
         return $icons[$this->type] ?? 'fas fa-circle';
